@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Prepline — AI Mock Interview Coach</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<div class="app">
+  <div class="topbar">
+    <div class="brand" id="brandHome">
+      <div class="mark">P</div>
+      <div class="name">Prepline</div>
+    </div>
+    <div class="status" id="topStatus">AI Mock Interview Coach</div>
+  </div>
+
+  <main>
+
+    <!-- ============ VIEW: LANDING ============ -->
+    <section class="view active" id="view-landing">
+      <div class="wrap">
+        <div class="eyebrow">Practice before it counts</div>
+        <h1 class="hero">Walk into your next interview already sounding ready.</h1>
+        <p class="hero-sub">Pick a role, answer questions the way you would live, and get a straight, specific breakdown of what to fix — relevance, structure, filler words, and clarity.</p>
+        <div class="btn-row">
+          <button class="btn btn-primary" id="startBtn">Start a practice interview</button>
+        </div>
+        <div class="feature-row">
+          <div class="item">
+            <div class="dot"></div>
+            <p><b>Real questions for your role</b> — technical, HR, or a mix, tuned to your experience level.</p>
+          </div>
+          <div class="item">
+            <div class="dot"></div>
+            <p><b>Answer in your own words</b> — no scripts, no multiple choice, just how you'd actually respond.</p>
+          </div>
+          <div class="item">
+            <div class="dot"></div>
+            <p><b>Feedback you can act on</b> — a score per answer, an improved version, and one clear report at the end.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ VIEW: SETUP ============ -->
+    <section class="view" id="view-setup">
+      <div class="wrap top">
+        <div class="step-label">Before you start</div>
+        <h2 class="title">Set up your session</h2>
+        <p class="title-sub">This shapes which questions you'll get and how they're scored.</p>
+
+        <div class="field">
+          <label for="inpName">Your name</label>
+          <input class="input" id="inpName" type="text" placeholder="e.g. Vamshika Sharma">
+        </div>
+
+        <div class="field">
+          <label for="inpRole">Role you're preparing for</label>
+          <input class="input" id="inpRole" type="text" placeholder="e.g. Software Engineer, Data Analyst">
+        </div>
+
+        <div class="field">
+          <label>Experience level</label>
+          <div class="pill-group" id="grpExperience">
+            <div class="pill" data-value="Fresher">Fresher</div>
+            <div class="pill" data-value="0-2 yrs">0–2 years</div>
+            <div class="pill" data-value="2-5 yrs">2–5 years</div>
+            <div class="pill" data-value="5+ yrs">5+ years</div>
+          </div>
+        </div>
+
+        <div class="field">
+          <label>Interview type</label>
+          <div class="pill-group" id="grpType">
+            <div class="pill" data-value="Technical">Technical</div>
+            <div class="pill" data-value="HR">HR</div>
+            <div class="pill" data-value="Mixed">Mixed</div>
+          </div>
+        </div>
+
+        <div class="field">
+          <label>Number of questions</label>
+          <div class="count-row">
+            <button class="count-btn" id="countMinus">−</button>
+            <div class="count-val" id="countVal">5</div>
+            <button class="count-btn" id="countPlus">+</button>
+          </div>
+          <div class="hint">You can stop early — your report will reflect the questions you completed.</div>
+        </div>
+
+        <div class="btn-row" style="margin-top:12px;">
+          <button class="btn btn-ghost" id="backToLanding">Back</button>
+          <button class="btn btn-primary" id="beginInterview">Begin interview</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ VIEW: INTERVIEW ============ -->
+    <section class="view" id="view-interview">
+      <div class="wrap top">
+        <div class="progress-bar"><div class="progress-fill" id="progressFill" style="width:0%"></div></div>
+        <div class="q-meta">
+          <div class="q-count" id="qCount">Question 1 of 5</div>
+          <div class="q-timer" id="qTimer">00:00</div>
+        </div>
+        <div class="q-category" id="qCategory">Technical</div>
+        <h2 class="q-text" id="qText">Loading your question…</h2>
+
+        <div class="field">
+          <textarea class="input" id="answerBox" placeholder="Type your answer here, the way you'd say it out loud…"></textarea>
+        </div>
+        <div class="answer-tools">
+          <div class="word-count" id="wordCount">0 words</div>
+          <div class="btn-row">
+            <button class="btn btn-ghost" id="skipBtn">Skip</button>
+            <button class="btn btn-primary" id="submitAnswer">Submit answer</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ VIEW: LOADING ============ -->
+    <section class="view" id="view-loading">
+      <div class="wrap loading-wrap">
+        <div class="spinner"></div>
+        <div class="loading-text">Evaluating your answer…</div>
+        <div class="loading-sub" id="loadingSub">Checking relevance, structure, and clarity</div>
+      </div>
+    </section>
+
+    <!-- ============ VIEW: FEEDBACK ============ -->
+    <section class="view" id="view-feedback">
+      <div class="wrap top">
+        <div class="step-label" id="fbQCount">Question 1 of 5 — feedback</div>
+        <div class="score-hero">
+          <div class="score-big" id="fbOverall">78</div>
+          <div class="score-label">overall for this answer</div>
+        </div>
+
+        <div id="fbMetrics"></div>
+
+        <div class="panel">
+          <h3>Feedback</h3>
+          <p id="fbFeedback">—</p>
+        </div>
+        <div class="panel improved">
+          <h3>A stronger way to say it</h3>
+          <p id="fbImproved">—</p>
+        </div>
+
+        <div class="btn-row" style="margin-top:30px;">
+          <button class="btn btn-primary" id="nextQuestion">Next question</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ VIEW: REPORT ============ -->
+    <section class="view" id="view-report">
+      <div class="wrap wide top">
+        <div class="report-head">
+          <div class="step-label">Session complete</div>
+          <h2 class="title" id="reportName">Your interview report</h2>
+        </div>
+
+        <div class="readiness-ring-row">
+          <div class="ring">
+            <svg width="132" height="132" viewBox="0 0 132 132">
+              <circle cx="66" cy="66" r="58" fill="none" stroke="var(--panel-2)" stroke-width="10"/>
+              <circle id="ringProgress" cx="66" cy="66" r="58" fill="none" stroke="var(--accent)" stroke-width="10" stroke-linecap="round" stroke-dasharray="364" stroke-dashoffset="364"/>
+            </svg>
+            <div class="ring-label">
+              <div class="num" id="readinessNum">0</div>
+              <div class="of">out of 100</div>
+            </div>
+          </div>
+          <div class="readiness-text">
+            <h3 id="readinessHeadline">Readiness score</h3>
+            <p id="readinessBlurb">Based on your answers across relevance, technical accuracy, clarity, and communication.</p>
+          </div>
+        </div>
+
+        <div id="reportMetrics"></div>
+
+        <div class="qbreak">
+          <h3>Question-by-question</h3>
+          <p style="color:var(--muted); font-size:13.5px; margin:-8px 0 18px;">Answers scored below 60 include a model answer to review below the score.</p>
+          <div id="qBreakdownList"></div>
+        </div>
+
+        <div class="footer-actions">
+          <button class="btn btn-ghost" id="restartBtn">Start a new session</button>
+        </div>
+      </div>
+    </section>
+
+  </main>
+</div>
+
+<script src="app.js"></script>
+</body>
+</html>
