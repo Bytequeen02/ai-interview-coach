@@ -1,0 +1,19 @@
+# Virtual environment (sits at project root, outside backend/)
+venv/
+.venv/
+env/
+
+# Python cache (in case any exists at root)
+__pycache__/
+*.pyc
+
+# OS / editor
+.DS_Store
+.vscode/
+.idea/
+
+# Logs
+*.log
+
+# Secrets (backup rule — backend/.gitignore already covers backend/.env)
+.env
