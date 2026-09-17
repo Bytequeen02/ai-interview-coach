@@ -14,50 +14,131 @@
    ========================================================================= */
 
 const CONFIG = {
-  API_BASE_URL: "http://localhost:8000", // TODO: set to your deployed FastAPI URL
+  API_BASE_URL: "http://127.0.0.1:8000", // FastAPI backend (Kashish's part)
 };
 
-/* ============================ API LAYER ================================ */
+/* ============================ API LAYER ================================
+   INTEGRATION NOTE: the real backend is SESSION-BASED and gives out ONE
+   question at a time (it only generates question N+1 after question N has
+   been answered). That's different from the original mock, which returned
+   all N questions upfront. To keep the rest of this file (loadQuestion,
+   renderFeedback, renderReport, etc.) working unchanged, we:
+     - store the session_id on `state` once the interview starts
+     - keep `state.questions` as an array that GROWS one item at a time
+       (see the "nextQuestion" click handler further down, which now
+       awaits a real fetch before showing the next question)
+     - use `state.totalQuestions` (not state.questions.length) for the
+       "Question X of N" progress display, since the array won't be full
+       length until the interview is complete
+   ========================================================================= */
 
-// Expected return: [{ id, text, category }]
-async function apiGenerateQuestions(payload) {
-  // TODO (Kashish): replace with:
-  // const res = await fetch(`${CONFIG.API_BASE_URL}/api/questions`, {
-  //   method: "POST",
-  //   headers: { "Content-Type": "application/json" },
-  //   body: JSON.stringify(payload)
-  // });
-  // if (!res.ok) throw new Error("Failed to generate questions");
-  // return await res.json();
-  return mockGenerateQuestions(payload);
+// Backend only accepts Fresher / Junior / Mid / Senior. Map the UI's
+// pill labels (which show friendlier "years of experience" text) to that.
+function mapExperienceLevel(uiValue) {
+  const map = {
+    "Fresher": "Fresher",
+    "0-2 yrs": "Junior",
+    "2-5 yrs": "Mid",
+    "5+ yrs": "Senior",
+  };
+  return map[uiValue] || "Fresher";
+}
+
+// Expected return: [{ id, text, category, idealAnswer }]
+// (Only returns the FIRST question — see integration note above. Later
+// questions are fetched lazily by the "nextQuestion" click handler.)
+async function apiGenerateQuestions({ role, experience, type, count }) {
+  let res;
+  try {
+    res = await fetch(`${CONFIG.API_BASE_URL}/api/interview/start`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        candidate_name: state.candidate.name,
+        target_role: role,
+        experience_level: mapExperienceLevel(experience),
+        interview_type: type,
+        num_questions: count,
+      }),
+    });
+  } catch (err) {
+    throw new Error("Could not reach the backend. Is the FastAPI server running on " + CONFIG.API_BASE_URL + "?");
+  }
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(body.detail ? JSON.stringify(body.detail) : "Failed to start interview.");
+  }
+  const data = await res.json();
+  state.sessionId = data.session_id;
+  state.totalQuestions = data.total_questions;
+  return [{
+    id: data.first_question.question_id,
+    text: data.first_question.question,
+    category: data.first_question.category,
+    // Backend doesn't hand out a pre-written "model answer" before the
+    // question is answered (unlike the old mock's curated bank) — a real
+    // improved_answer only exists once the AI evaluates the candidate's
+    // actual answer. submitCurrentAnswer() below fills this in after that.
+    idealAnswer: "",
+  }];
 }
 
 // Expected return:
 // { relevance, technical_accuracy, clarity, communication, overall, feedback, improved_answer }
-// All scores are 0-100 integers.
-async function apiEvaluateAnswer(payload) {
-  // TODO (Kashish): replace with:
-  // const res = await fetch(`${CONFIG.API_BASE_URL}/api/evaluate`, {
-  //   method: "POST",
-  //   headers: { "Content-Type": "application/json" },
-  //   body: JSON.stringify(payload)
-  // });
-  // if (!res.ok) throw new Error("Failed to evaluate answer");
-  // return await res.json();
-  return mockEvaluateAnswer(payload);
+// All scores are 0-100 integers (backend returns 0-10 floats — converted here).
+async function apiEvaluateAnswer({ question, answer }) {
+  const q = state.questions[state.currentIndex];
+  const safeAnswer = (answer || "").trim().length ? answer : "(No answer was provided for this question.)";
+
+  let res;
+  try {
+    res = await fetch(`${CONFIG.API_BASE_URL}/api/interview/answer`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        session_id: state.sessionId,
+        question_id: q.id,
+        question: question,
+        answer: safeAnswer,
+      }),
+    });
+  } catch (err) {
+    throw new Error("Could not reach the backend. Is the FastAPI server running on " + CONFIG.API_BASE_URL + "?");
+  }
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(body.detail ? JSON.stringify(body.detail) : "Failed to evaluate answer.");
+  }
+  const data = await res.json();
+  const e = data.evaluation;
+  return {
+    relevance: Math.round(e.relevance * 10),
+    technical_accuracy: Math.round(e.technical_accuracy * 10),
+    clarity: Math.round(e.clarity * 10),
+    communication: Math.round(e.communication * 10),
+    overall: Math.round(e.overall_score * 10),
+    feedback: e.feedback,
+    improved_answer: e.improved_answer,
+  };
 }
 
 // Expected return: { readiness: 0-100, summary: string }
 async function apiFinalizeReport(payload) {
-  // TODO (Kashish): replace with:
-  // const res = await fetch(`${CONFIG.API_BASE_URL}/api/report`, {
-  //   method: "POST",
-  //   headers: { "Content-Type": "application/json" },
-  //   body: JSON.stringify(payload)
-  // });
-  // if (!res.ok) throw new Error("Failed to finalize report");
-  // return await res.json();
-  return mockFinalizeReport(payload);
+  let res;
+  try {
+    res = await fetch(`${CONFIG.API_BASE_URL}/api/interview/${state.sessionId}/report`);
+  } catch (err) {
+    throw new Error("Could not reach the backend. Is the FastAPI server running on " + CONFIG.API_BASE_URL + "?");
+  }
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(body.detail ? JSON.stringify(body.detail) : "Failed to generate report.");
+  }
+  const data = await res.json();
+  return {
+    readiness: Math.round(data.overall_score * 10),
+    summary: data.interview_summary,
+  };
 }
 
 /* ============================ MOCK ENGINE =============================== */
@@ -298,6 +379,9 @@ function mockFinalizeReport({ evaluations }) {
 
 const state = {
   candidate: { name: "", role: "", experience: "Fresher", type: "Mixed", count: 5 },
+  sessionId: null,       // set by apiGenerateQuestions() once the backend session starts
+  totalQuestions: 0,     // set by apiGenerateQuestions() — use this instead of questions.length
+                         // for progress display, since `questions` fills in one at a time
   questions: [],
   currentIndex: 0,
   evaluations: [], // { question, category, ...scores }
@@ -366,6 +450,8 @@ document.getElementById("beginInterview").addEventListener("click", async () => 
     document.getElementById("topStatus").textContent = state.candidate.role;
     loadQuestion();
     showView("view-interview");
+  } catch (err) {
+    alert(err.message || "Something went wrong starting the interview.");
   } finally {
     btn.disabled = false;
     btn.textContent = "Begin interview";
@@ -376,12 +462,12 @@ document.getElementById("beginInterview").addEventListener("click", async () => 
 
 function loadQuestion() {
   const q = state.questions[state.currentIndex];
-  document.getElementById("qCount").textContent = `Question ${state.currentIndex + 1} of ${state.questions.length}`;
+  document.getElementById("qCount").textContent = `Question ${state.currentIndex + 1} of ${state.totalQuestions}`;
   document.getElementById("qCategory").textContent = q.category;
   document.getElementById("qText").textContent = q.text;
   document.getElementById("answerBox").value = "";
   document.getElementById("wordCount").textContent = "0 words";
-  const pct = (state.currentIndex / state.questions.length) * 100;
+  const pct = (state.currentIndex / state.totalQuestions) * 100;
   document.getElementById("progressFill").style.width = pct + "%";
   startTimer();
 }
@@ -424,19 +510,24 @@ async function submitCurrentAnswer(answerText) {
   ];
   document.getElementById("loadingSub").textContent = loadingLines[Math.floor(Math.random() * loadingLines.length)];
 
-  const evaluation = await apiEvaluateAnswer({
-    question: q.text,
-    answer: answerText,
-    role: state.candidate.role,
-    category: q.category,
-  });
+  try {
+    const evaluation = await apiEvaluateAnswer({
+      question: q.text,
+      answer: answerText,
+      role: state.candidate.role,
+      category: q.category,
+    });
 
-  // small artificial delay so the loading state feels real, not instant
-  await new Promise(r => setTimeout(r, 550));
+    // small artificial delay so the loading state feels real, not instant
+    await new Promise(r => setTimeout(r, 550));
 
-  state.evaluations.push({ question: q.text, category: q.category, answer: answerText, idealAnswer: q.idealAnswer, ...evaluation });
-  renderFeedback(evaluation);
-  showView("view-feedback");
+    state.evaluations.push({ question: q.text, category: q.category, answer: answerText, idealAnswer: evaluation.improved_answer, ...evaluation });
+    renderFeedback(evaluation);
+    showView("view-feedback");
+  } catch (err) {
+    alert(err.message || "Something went wrong evaluating your answer.");
+    showView("view-interview");
+  }
 }
 
 /* ============================ FEEDBACK SCREEN ============================ */
@@ -448,7 +539,7 @@ function scoreColorVar(score) {
 }
 
 function renderFeedback(evalData) {
-  document.getElementById("fbQCount").textContent = `Question ${state.currentIndex + 1} of ${state.questions.length} — feedback`;
+  document.getElementById("fbQCount").textContent = `Question ${state.currentIndex + 1} of ${state.totalQuestions} — feedback`;
   document.getElementById("fbOverall").textContent = evalData.overall;
   document.getElementById("fbOverall").style.color = scoreColorVar(evalData.overall);
   document.getElementById("fbFeedback").textContent = evalData.feedback;
@@ -471,9 +562,25 @@ function renderFeedback(evalData) {
 
 document.getElementById("nextQuestion").addEventListener("click", async () => {
   state.currentIndex++;
-  if (state.currentIndex < state.questions.length) {
-    loadQuestion();
-    showView("view-interview");
+  if (state.currentIndex < state.totalQuestions) {
+    showView("view-loading");
+    document.getElementById("loadingSub").textContent = "Preparing your next question";
+    try {
+      const res = await fetch(`${CONFIG.API_BASE_URL}/api/interview/${state.sessionId}/next-question`);
+      if (!res.ok) throw new Error("Failed to fetch the next question.");
+      const data = await res.json();
+      state.questions.push({
+        id: data.question.question_id,
+        text: data.question.question,
+        category: data.question.category,
+        idealAnswer: "",
+      });
+      loadQuestion();
+      showView("view-interview");
+    } catch (err) {
+      alert(err.message || "Something went wrong fetching the next question.");
+      showView("view-interview"); // fall back to the last visible screen rather than a dead loading state
+    }
   } else {
     await finishSession();
   }
@@ -485,14 +592,19 @@ async function finishSession() {
   showView("view-loading");
   document.getElementById("loadingSub").textContent = "Putting together your final report";
 
-  const { readiness, summary } = await apiFinalizeReport({
-    candidate: state.candidate,
-    evaluations: state.evaluations,
-  });
-  await new Promise(r => setTimeout(r, 500));
+  try {
+    const { readiness, summary } = await apiFinalizeReport({
+      candidate: state.candidate,
+      evaluations: state.evaluations,
+    });
+    await new Promise(r => setTimeout(r, 500));
 
-  renderReport(readiness, summary);
-  showView("view-report");
+    renderReport(readiness, summary);
+    showView("view-report");
+  } catch (err) {
+    alert(err.message || "Something went wrong generating the final report.");
+    showView("view-feedback");
+  }
 }
 
 function renderReport(readiness, summary) {
@@ -560,6 +672,8 @@ document.getElementById("restartBtn").addEventListener("click", () => {
   state.questions = [];
   state.currentIndex = 0;
   state.evaluations = [];
+  state.sessionId = null;
+  state.totalQuestions = 0;
   document.getElementById("inpName").value = "";
   document.getElementById("inpRole").value = "";
   document.getElementById("topStatus").textContent = "AI Mock Interview Coach";
