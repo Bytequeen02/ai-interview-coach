@@ -111,9 +111,17 @@
         </div>
         <div class="q-category" id="qCategory">Technical</div>
         <h2 class="q-text" id="qText">Loading your question…</h2>
+        <div class="voice-row" id="voiceRow" style="display:flex; align-items:center; gap:10px; margin-top:6px;">
+          <span id="speakingStatus" style="font-size:13px; color:#666;"></span>
+          <button type="button" class="btn btn-ghost" id="replayQuestionBtn" style="padding:4px 10px; font-size:13px;">🔊 Replay question</button>
+        </div>
 
         <div class="field">
           <textarea class="input" id="answerBox" placeholder="Type your answer here, the way you'd say it out loud…"></textarea>
+        </div>
+        <div class="mic-row" id="micRow" style="display:flex; align-items:center; gap:10px; margin-top:6px;">
+          <button type="button" class="btn btn-ghost" id="micBtn">🎙️ Start speaking</button>
+          <span id="listeningStatus" style="font-size:13px; color:#666;"></span>
         </div>
         <div class="answer-tools">
           <div class="word-count" id="wordCount">0 words</div>
@@ -202,6 +210,7 @@
   </main>
 </div>
 
+<script src="speech.js"></script>
 <script src="app.js"></script>
 </body>
 </html>

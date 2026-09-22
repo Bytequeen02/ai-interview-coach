@@ -470,11 +470,117 @@ function loadQuestion() {
   const pct = (state.currentIndex / state.totalQuestions) * 100;
   document.getElementById("progressFill").style.width = pct + "%";
   startTimer();
+  speakCurrentQuestion(q.text);
+  VoiceUtils.stopListening();
+  resetMicUI();
 }
+
+// Phase 2: speak the question aloud exactly once when it loads.
+// speak() internally cancels any in-progress speech first, so calling
+// this again (e.g. on Replay) never overlaps with itself.
+function speakCurrentQuestion(text) {
+  const statusEl = document.getElementById("speakingStatus");
+  if (!VoiceUtils.isTTSSupported()) {
+    if (statusEl) statusEl.textContent = "";
+    return;
+  }
+  VoiceUtils.speak(text, {
+    onStart: () => { if (statusEl) statusEl.textContent = "🔊 Speaking..."; },
+    onEnd: () => { if (statusEl) statusEl.textContent = ""; },
+    onError: () => { if (statusEl) statusEl.textContent = "Couldn't play audio — read the question above."; },
+  });
+}
+
+document.getElementById("replayQuestionBtn").addEventListener("click", () => {
+  const statusEl = document.getElementById("speakingStatus");
+  VoiceUtils.replayQuestion({
+    onStart: () => { if (statusEl) statusEl.textContent = "🔊 Speaking..."; },
+    onEnd: () => { if (statusEl) statusEl.textContent = ""; },
+    onError: () => { if (statusEl) statusEl.textContent = "Couldn't play audio — read the question above."; },
+  });
+});
 
 document.getElementById("answerBox").addEventListener("input", (e) => {
   const words = e.target.value.trim().length ? e.target.value.trim().split(/\s+/).length : 0;
   document.getElementById("wordCount").textContent = `${words} word${words === 1 ? "" : "s"}`;
+});
+
+/* ============================ PHASE 3: VOICE ANSWER INPUT ============================ */
+
+const micBtn = document.getElementById("micBtn");
+const listeningStatus = document.getElementById("listeningStatus");
+let micBaseText = ""; // whatever was already in the answer box before this recording session started
+
+if (!VoiceUtils.isSTTSupported()) {
+  micBtn.disabled = true;
+  listeningStatus.textContent = "Voice input is not supported in this browser. Please use Chrome/Edge or type your answer manually.";
+}
+
+function resetMicUI() {
+  micBtn.textContent = "🎙️ Start speaking";
+  if (VoiceUtils.isSTTSupported()) listeningStatus.textContent = "";
+}
+
+// Fills the transcript into the SAME textarea used for typing — the candidate
+// can keep typing/editing before submitting either way. Dispatching a real
+// "input" event reuses the existing word-count listener above instead of
+// duplicating that logic.
+function applyTranscriptToAnswerBox(text) {
+  const box = document.getElementById("answerBox");
+  box.value = text;
+  box.dispatchEvent(new Event("input"));
+}
+
+micBtn.addEventListener("click", () => {
+  if (VoiceUtils.isListening()) {
+    VoiceUtils.stopListening();
+    return;
+  }
+  if (!VoiceUtils.isSTTSupported()) return; // button is disabled in this case anyway
+
+  // If the AI interviewer is still talking, stop it first so the mic doesn't pick it up.
+  VoiceUtils.stopSpeaking();
+
+  micBaseText = document.getElementById("answerBox").value.trim();
+
+  VoiceUtils.startListening({
+    onStart: () => {
+      micBtn.textContent = "🔴 Stop recording";
+      listeningStatus.textContent = "Listening...";
+    },
+    onInterim: (interim) => {
+      const finalSoFar = VoiceUtils.getTranscript();
+      applyTranscriptToAnswerBox([micBaseText, finalSoFar, interim].filter(Boolean).join(" ").trim());
+    },
+    onFinal: (final) => {
+      applyTranscriptToAnswerBox([micBaseText, final].filter(Boolean).join(" ").trim());
+    },
+    onEnd: () => {
+      const captured = VoiceUtils.getTranscript();
+      resetMicUI();
+      // Some browsers end recognition silently (no error event) if nothing was heard.
+      if (!captured && !micBaseText) {
+        listeningStatus.textContent = "Didn't catch any speech. Try again, or type your answer manually.";
+      }
+    },
+    onError: (e) => {
+      resetMicUI();
+      const reason = e && e.error;
+      let message = "Voice input error. Please type your answer manually.";
+      if (reason === "not-allowed" || reason === "permission-denied") {
+        message = "Microphone permission denied. Please allow microphone access, or type your answer manually.";
+      } else if (reason === "audio-capture") {
+        message = "No microphone was found on this device. Please check your hardware, or type your answer manually.";
+      } else if (reason === "no-speech") {
+        message = "Didn't catch that — no speech detected. Try again, or type your answer manually.";
+      } else if (reason === "network") {
+        message = "Network issue with voice recognition. Try again, or type your answer manually.";
+      } else if (e && e.message) {
+        message = e.message;
+      }
+      listeningStatus.textContent = message;
+    },
+  });
 });
 
 function startTimer() {
@@ -500,6 +606,8 @@ document.getElementById("submitAnswer").addEventListener("click", () => {
 
 async function submitCurrentAnswer(answerText) {
   stopTimer();
+  VoiceUtils.stopSpeaking();
+  VoiceUtils.stopListening();
   showView("view-loading");
 
   const q = state.questions[state.currentIndex];
@@ -561,6 +669,7 @@ function renderFeedback(evalData) {
 }
 
 document.getElementById("nextQuestion").addEventListener("click", async () => {
+  VoiceUtils.stopSpeaking();
   state.currentIndex++;
   if (state.currentIndex < state.totalQuestions) {
     showView("view-loading");
@@ -669,6 +778,8 @@ function escapeHtml(str) {
 }
 
 document.getElementById("restartBtn").addEventListener("click", () => {
+  VoiceUtils.stopSpeaking();
+  VoiceUtils.stopListening();
   state.questions = [];
   state.currentIndex = 0;
   state.evaluations = [];
@@ -678,4 +789,10 @@ document.getElementById("restartBtn").addEventListener("click", () => {
   document.getElementById("inpRole").value = "";
   document.getElementById("topStatus").textContent = "AI Mock Interview Coach";
   showView("view-landing");
+});
+
+// Phase 2: stop any in-progress speech if the candidate navigates away or closes the tab.
+window.addEventListener("beforeunload", () => {
+  VoiceUtils.stopSpeaking();
+  VoiceUtils.stopListening();
 });

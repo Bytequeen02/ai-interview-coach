@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Voice Utilities Test — Phase 1</title>
+<style>
+  body { font-family: -apple-system, Segoe UI, Roboto, sans-serif; max-width: 640px; margin: 40px auto; padding: 0 20px; color: #1a1a1a; }
+  h2 { margin-bottom: 4px; }
+  .note { color: #666; margin-top: 0; }
+  h3 { margin-top: 32px; }
+  button { padding: 10px 16px; margin: 6px 8px 6px 0; cursor: pointer; border-radius: 6px; border: 1px solid #ccc; background: #f5f5f5; font-size: 14px; }
+  button:hover { background: #ebebeb; }
+  #transcriptBox { border: 1px solid #ccc; border-radius: 6px; padding: 12px; min-height: 60px; margin-top: 10px; white-space: pre-wrap; background: #fafafa; }
+  .status { color: #555; font-size: 14px; margin-top: 8px; min-height: 20px; }
+  .unsupported { color: #b00020; font-weight: 600; }
+  .ok { color: #1a7f37; font-size: 13px; }
+</style>
+</head>
+<body>
+  <h2>Phase 1 — Voice Utilities Test</h2>
+  <p class="note">Standalone test page. Does not touch <code>index.html</code> or <code>app.js</code> — just verifies the TTS and STT utilities in <code>speech.js</code> work correctly before wiring them into the real interview flow.</p>
+
+  <h3>🔊 Text-to-Speech</h3>
+  <button id="btnSpeak">Speak Sample Question</button>
+  <button id="btnReplay">Replay</button>
+  <button id="btnStopSpeak">Stop</button>
+  <div class="status" id="ttsStatus">Idle</div>
+
+  <h3>🎙️ Speech-to-Text</h3>
+  <button id="btnListen">Start Speaking</button>
+  <button id="btnStopListen">Stop Recording</button>
+  <div class="status" id="sttStatus">Idle</div>
+  <div id="transcriptBox">(transcript will appear here)</div>
+
+  <script src="speech.js"></script>
+  <script>
+    const sampleQuestion = "Explain the difference between supervised and unsupervised learning.";
+    const ttsStatus = document.getElementById("ttsStatus");
+    const sttStatus = document.getElementById("sttStatus");
+    const transcriptBox = document.getElementById("transcriptBox");
+
+    // Feature detection on page load
+    if (!VoiceUtils.isTTSSupported()) {
+      ttsStatus.textContent = "Text-to-speech is not supported in this browser.";
+      ttsStatus.classList.add("unsupported");
+    } else {
+      ttsStatus.innerHTML = 'Idle <span class="ok">(TTS supported ✓)</span>';
+    }
+
+    if (!VoiceUtils.isSTTSupported()) {
+      sttStatus.textContent = "Voice input is not supported in this browser. Please use Chrome/Edge or type your answer manually.";
+      sttStatus.classList.add("unsupported");
+      document.getElementById("btnListen").disabled = true;
+    } else {
+      sttStatus.innerHTML = 'Idle <span class="ok">(STT supported ✓)</span>';
+    }
+
+    document.getElementById("btnSpeak").addEventListener("click", () => {
+      VoiceUtils.speak(sampleQuestion, {
+        onStart: () => (ttsStatus.textContent = "🔊 Speaking..."),
+        onEnd: () => (ttsStatus.textContent = "Idle"),
+        onError: (e) => (ttsStatus.textContent = "Error: " + (e.message || e.error || "unknown")),
+      });
+    });
+
+    document.getElementById("btnReplay").addEventListener("click", () => {
+      VoiceUtils.replayQuestion({
+        onStart: () => (ttsStatus.textContent = "🔊 Speaking (replay)..."),
+        onEnd: () => (ttsStatus.textContent = "Idle"),
+      });
+    });
+
+    document.getElementById("btnStopSpeak").addEventListener("click", () => {
+      VoiceUtils.stopSpeaking();
+      ttsStatus.textContent = "Stopped";
+    });
+
+    document.getElementById("btnListen").addEventListener("click", () => {
+      VoiceUtils.startListening({
+        onStart: () => (sttStatus.textContent = "🔴 Listening..."),
+        onInterim: (interim) => {
+          transcriptBox.textContent = (VoiceUtils.getTranscript() + " " + interim).trim();
+        },
+        onFinal: (final) => {
+          transcriptBox.textContent = final;
+        },
+        onEnd: (finalTranscript) => {
+          sttStatus.textContent = "Idle";
+          transcriptBox.textContent = finalTranscript || "(no speech detected)";
+        },
+        onError: (e) => {
+          sttStatus.textContent = "Error: " + (e.message || e.error || "unknown");
+        },
+      });
+    });
+
+    document.getElementById("btnStopListen").addEventListener("click", () => {
+      VoiceUtils.stopListening();
+    });
+  </script>
+</body>
+</html>
