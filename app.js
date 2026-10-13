@@ -430,14 +430,18 @@ document.getElementById("countPlus").addEventListener("click", () => {
 
 /* ============================ SETUP -> INTERVIEW ========================= */
 
-document.getElementById("beginInterview").addEventListener("click", async () => {
+document.getElementById("beginInterview").addEventListener("click", () => {
   state.candidate.name = document.getElementById("inpName").value.trim() || "Candidate";
   state.candidate.role = document.getElementById("inpRole").value.trim() || "your target role";
+  showView("view-video-lobby");
+});
 
-  const btn = document.getElementById("beginInterview");
+document.getElementById("backToSetup").addEventListener("click", () => showView("view-setup"));
+
+async function startInterviewFlow() {
+  const btn = document.getElementById("startVideoInterview");
   btn.disabled = true;
   btn.textContent = "Preparing questions…";
-
   try {
     state.questions = await apiGenerateQuestions({
       role: state.candidate.role,
@@ -450,13 +454,16 @@ document.getElementById("beginInterview").addEventListener("click", async () => 
     document.getElementById("topStatus").textContent = state.candidate.role;
     loadQuestion();
     showView("view-interview");
+    VideoInterviewUI.onInterviewStarted();
   } catch (err) {
-    alert(err.message || "Something went wrong starting the interview.");
+    VideoInterviewUI.endCamera();
+    showView("view-video-lobby");
+    document.getElementById("cameraMessage").textContent = err.message || "Could not start the interview. Please try again.";
   } finally {
     btn.disabled = false;
-    btn.textContent = "Begin interview";
+    btn.textContent = "Start video interview";
   }
-});
+}
 
 /* ============================ INTERVIEW SCREEN ============================ */
 
@@ -709,6 +716,7 @@ async function finishSession() {
     await new Promise(r => setTimeout(r, 500));
 
     renderReport(readiness, summary);
+    if (window.VideoInterviewUI) VideoInterviewUI.endCamera();
     showView("view-report");
   } catch (err) {
     alert(err.message || "Something went wrong generating the final report.");
