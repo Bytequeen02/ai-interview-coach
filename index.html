@@ -195,6 +195,13 @@
 
         <div id="reportMetrics"></div>
 
+        <div class="panel attention-report">
+          <h3>Attention</h3>
+          <p id="attentionReportSummary">Attention monitoring was not used.</p>
+          <div class="attention-tally" id="attentionTally"></div>
+          <ol id="attentionReportList"></ol>
+        </div>
+
         <div class="qbreak">
           <h3>Question-by-question</h3>
           <p style="color:var(--muted); font-size:13.5px; margin:-8px 0 18px;">Answers scored below 60 include a model answer to review below the score.</p>
@@ -208,6 +215,16 @@
     </section>
 
   </main>
+
+  <aside id="attentionDock" class="attention-dock" hidden>
+    <p class="attention-kicker">Attention</p>
+    <video id="interviewVideo" playsinline muted autoplay></video>
+    <div class="attention-badge" id="attentionStatus" data-status="UNAVAILABLE">
+      <span class="attention-dot"></span>
+      <span id="attentionLabel">UNAVAILABLE</span>
+    </div>
+    <p id="attentionMessage">Camera is off.</p>
+  </aside>
 </div>
 
 <script src="speech.js"></script>

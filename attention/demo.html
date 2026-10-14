@@ -1,0 +1,494 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Prepline — Attention</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0F1B2D;
+    --bg-2: #132238;
+    --panel: #16273F;
+    --border: #2A3E5A;
+    --text: #F3EFE6;
+    --muted: #9FB0C6;
+    --accent: #D6A94A;
+    --accent-ink: #3A2C0E;
+    --good: #5EAE7E;
+    --mid: #D6A94A;
+    --bad: #D2657C;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    min-height: 100vh;
+    color: var(--text);
+    font-family: Inter, "Segoe UI", sans-serif;
+    background:
+      radial-gradient(900px 420px at 0% -10%, rgba(214, 169, 74, 0.16), transparent 55%),
+      radial-gradient(800px 480px at 100% 0%, rgba(94, 174, 126, 0.08), transparent 50%),
+      #0b1524;
+  }
+  main {
+    width: min(1040px, calc(100% - 40px));
+    margin: 28px auto 56px;
+  }
+  .eyebrow {
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    font-size: 12px;
+    color: var(--accent);
+    margin: 0 0 8px;
+  }
+  h1 {
+    font-family: Fraunces, Georgia, serif;
+    font-weight: 560;
+    font-size: clamp(40px, 5vw, 64px);
+    letter-spacing: -0.03em;
+    line-height: 0.95;
+    margin: 0 0 12px;
+  }
+  .lede { color: var(--muted); margin: 0 0 28px; max-width: 58ch; line-height: 1.6; font-size: 16px; }
+  .engine {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    margin: 0 0 22px;
+    color: var(--muted);
+    font-size: 13px;
+  }
+  .engine i {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--mid);
+  }
+  .engine.ready { color: var(--good); }
+  .engine.ready i { background: var(--good); }
+  .layout { display: grid; grid-template-columns: 1.4fr 0.8fr; gap: 18px; }
+  @media (max-width: 800px) { .layout { grid-template-columns: 1fr; } }
+  .panel {
+    background: linear-gradient(180deg, rgba(255,255,255,0.04), rgba(255,255,255,0.015));
+    border: 1px solid rgba(214, 169, 74, 0.22);
+    border-radius: 28px;
+    padding: 18px;
+    box-shadow: 0 30px 80px rgba(0, 0, 0, 0.28);
+  }
+  .stage {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 4 / 3;
+    background: #070d16;
+    border-radius: 22px;
+    overflow: hidden;
+    box-shadow: inset 0 0 0 1px rgba(255,255,255,0.06);
+  }
+  video, canvas {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transform: scaleX(-1);
+  }
+  .placeholder {
+    position: absolute;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    color: var(--muted);
+    text-align: center;
+    padding: 16px;
+  }
+  .placeholder[hidden] { display: none; }
+  .row { display: flex; gap: 10px; margin-top: 14px; flex-wrap: wrap; }
+  button {
+    border: 0;
+    border-radius: 999px;
+    padding: 10px 16px;
+    font: inherit;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  button:disabled { opacity: 0.5; cursor: not-allowed; }
+  #startBtn { background: var(--accent); color: var(--accent-ink); padding: 12px 18px; }
+  #stopBtn { background: transparent; color: var(--text); border: 1px solid var(--border); padding: 12px 18px; }
+  .status {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    border-radius: 999px;
+    padding: 6px 12px;
+    font-weight: 600;
+    font-size: 13px;
+    background: rgba(159, 176, 198, 0.12);
+  }
+  .status[data-status="ATTENTIVE"] { color: var(--good); background: rgba(94, 174, 126, 0.14); }
+  .status[data-status="LOOKING_AWAY"],
+  .status[data-status="FACE_NOT_DETECTED"],
+  .status[data-status="MULTIPLE_FACES"],
+  .status[data-cue="warn"] { color: var(--mid); background: rgba(214, 169, 74, 0.14); }
+  .status[data-status="UNAVAILABLE"] { color: var(--bad); background: rgba(210, 101, 124, 0.14); }
+  .dot { width: 8px; height: 8px; border-radius: 50%; background: currentColor; }
+  dl { margin: 16px 0 0; }
+  dt { color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: 0.08em; }
+  dd { margin: 4px 0 12px; font-size: 16px; }
+  .states { list-style: none; margin: 14px 0 0; padding: 0; display: grid; gap: 6px; }
+  .states li {
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    padding: 6px 10px;
+    color: var(--muted);
+    font-size: 12px;
+    letter-spacing: 0.04em;
+  }
+  .states li.active[data-state="ATTENTIVE"] { color: var(--good); border-color: var(--good); }
+  .states li.active[data-state="LOOKING_AWAY"],
+  .states li.active[data-state="FACE_NOT_DETECTED"],
+  .states li.active[data-state="MULTIPLE_FACES"],
+  .states li.pending { color: var(--mid); border-color: var(--mid); }
+  .states li.active[data-state="UNAVAILABLE"] { color: var(--bad); border-color: var(--bad); }
+  .guide {
+    position: relative;
+    width: 140px;
+    height: 140px;
+    margin-top: 8px;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    background:
+      linear-gradient(var(--border), var(--border)) center / 1px 100% no-repeat,
+      linear-gradient(var(--border), var(--border)) center / 100% 1px no-repeat;
+  }
+  .guide .safe {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: 46px;
+    height: 46px;
+    transform: translate(-50%, -50%);
+    border: 1px dashed rgba(94, 174, 126, 0.8);
+    border-radius: 50%;
+  }
+  .guide .dot {
+    position: absolute;
+    width: 12px;
+    height: 12px;
+    margin: -6px 0 0 -6px;
+    border-radius: 50%;
+    background: var(--accent);
+    left: 50%;
+    top: 50%;
+  }
+  .log { margin-top: 18px; }
+  .log h2 { font-family: Fraunces, Georgia, serif; font-size: 22px; font-weight: 560; margin: 0 0 8px; }
+  .log ol { margin: 12px 0 0; padding-left: 18px; }
+  .log li { margin: 6px 0; }
+  .log li.ongoing { color: var(--mid); }
+  .tally { display: grid; gap: 8px; margin-top: 14px; }
+  .tally-row {
+    display: flex;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 8px 10px;
+    border-radius: 12px;
+    background: rgba(255,255,255,0.04);
+    font-size: 14px;
+  }
+  .tally-row b { color: var(--accent); }
+  .note { color: var(--muted); font-size: 13px; line-height: 1.45; }
+  .error { color: var(--bad); min-height: 1.2em; margin: 10px 0 0; }
+</style>
+</head>
+<body>
+<main>
+  <p class="eyebrow">Prepline</p>
+  <h1>Attention, live.</h1>
+  <p class="lede">
+    The camera stays on your machine. Face the screen and the status stays attentive.
+    Look away and it says so once, out loud, then writes down the time. Nothing is uploaded, and nothing is called cheating.
+  </p>
+  <p class="engine" id="engineNote"><i></i><span>Preparing detection…</span></p>
+
+  <div class="layout">
+    <section class="panel">
+      <div class="stage">
+        <video id="video" playsinline muted autoplay></video>
+        <canvas id="overlay"></canvas>
+        <div class="placeholder" id="placeholder">Camera is off</div>
+      </div>
+      <div class="row">
+        <button id="startBtn" type="button">Start camera</button>
+        <button id="stopBtn" type="button" disabled>Stop</button>
+      </div>
+      <p class="error" id="error" role="alert"></p>
+    </section>
+
+    <aside class="panel">
+      <div class="status" id="status" data-status="UNAVAILABLE">
+        <span class="dot"></span>
+        <span id="statusLabel">UNAVAILABLE</span>
+      </div>
+      <ul class="states" id="stateList">
+        <li data-state="ATTENTIVE">ATTENTIVE</li>
+        <li data-state="LOOKING_AWAY">LOOKING_AWAY</li>
+        <li data-state="FACE_NOT_DETECTED">FACE_NOT_DETECTED</li>
+        <li data-state="MULTIPLE_FACES">MULTIPLE_FACES</li>
+        <li data-state="UNAVAILABLE" class="active">UNAVAILABLE</li>
+      </ul>
+      <div class="guide" id="guide" aria-hidden="true">
+        <div class="safe"></div>
+        <div class="dot" id="poseDot"></div>
+      </div>
+      <dl>
+        <dt>Module</dt>
+        <dd id="lifecycle">Idle</dd>
+        <dt>Message</dt>
+        <dd id="message">Detection has not started.</dd>
+        <dt>Faces</dt>
+        <dd id="faceCount">0</dd>
+        <dt>Direction</dt>
+        <dd id="direction">—</dd>
+        <dt>Pitch / yaw / gaze down / gaze side</dt>
+        <dd id="metrics">—</dd>
+      </dl>
+      <div class="tally" id="tally"></div>
+      <p class="note" id="tallyNote">Hold a look for about a second. The count of where you looked appears here.</p>
+    </aside>
+  </div>
+
+  <section class="panel log">
+    <h2>Where you looked</h2>
+    <p class="note" id="eventSummary">Events appear after a look away holds. A quick glance is not recorded.</p>
+    <ol id="eventList"></ol>
+  </section>
+</main>
+
+<script type="module">
+  import { createAttentionMonitor, AttentionStatus, preloadAttentionEngine } from "./attentionMonitor.js";
+
+  const engineNote = document.getElementById("engineNote");
+  preloadAttentionEngine()
+    .then(() => {
+      engineNote.classList.add("ready");
+      engineNote.querySelector("span").textContent = "Detection ready";
+    })
+    .catch(() => {
+      engineNote.querySelector("span").textContent = "Detection model could not load";
+    });
+
+  const video = document.getElementById("video");
+  const canvas = document.getElementById("overlay");
+  const ctx = canvas.getContext("2d");
+  const placeholder = document.getElementById("placeholder");
+  const startBtn = document.getElementById("startBtn");
+  const stopBtn = document.getElementById("stopBtn");
+  const statusEl = document.getElementById("status");
+  const statusLabel = document.getElementById("statusLabel");
+  const messageEl = document.getElementById("message");
+  const lifecycleEl = document.getElementById("lifecycle");
+  const faceCountEl = document.getElementById("faceCount");
+  const directionEl = document.getElementById("direction");
+  const metricsEl = document.getElementById("metrics");
+  const poseDot = document.getElementById("poseDot");
+  const stateItems = document.querySelectorAll("#stateList li");
+  const errorEl = document.getElementById("error");
+  const eventSummary = document.getElementById("eventSummary");
+  const eventList = document.getElementById("eventList");
+  const tally = document.getElementById("tally");
+
+  let stream = null;
+  let monitor = null;
+  let lastSpokenStatus = "";
+
+  function speakStatus(snapshot) {
+    if (snapshot.status === lastSpokenStatus) return;
+    lastSpokenStatus = snapshot.status;
+    if (!("speechSynthesis" in window)) return;
+    let line = "";
+    if (snapshot.status === "LOOKING_AWAY") {
+      line = snapshot.direction === "closed"
+        ? "Your eyes are closed. Please look at the screen."
+        : snapshot.direction === "down"
+          ? "You're looking down. Please look back at the screen."
+          : "You're looking away. Please look back at the screen.";
+    } else if (snapshot.status === "FACE_NOT_DETECTED") {
+      line = "I can't see your face. Please come back in front of the camera.";
+    } else if (snapshot.status === "MULTIPLE_FACES") {
+      line = "More than one face is visible.";
+    }
+    if (!line) return;
+    const utterance = new SpeechSynthesisUtterance(line);
+    utterance.lang = "en-US";
+    utterance.rate = 1;
+    window.speechSynthesis.speak(utterance);
+  }
+
+  function setUnavailable(message) {
+    statusEl.dataset.status = AttentionStatus.UNAVAILABLE;
+    statusEl.dataset.cue = "";
+    statusLabel.textContent = AttentionStatus.UNAVAILABLE;
+    lifecycleEl.textContent = "Released";
+    messageEl.textContent = message;
+    faceCountEl.textContent = "0";
+    directionEl.textContent = "—";
+    metricsEl.textContent = "—";
+    poseDot.style.left = "50%";
+    poseDot.style.top = "50%";
+    markState(AttentionStatus.UNAVAILABLE, "");
+  }
+
+  function markState(status, cue) {
+    for (const item of stateItems) {
+      item.classList.toggle("active", item.dataset.state === status);
+      item.classList.toggle("pending", cue === "warn" && item.dataset.state === AttentionStatus.LOOKING_AWAY);
+    }
+  }
+
+  function render(snapshot) {
+    speakStatus(snapshot);
+    statusEl.dataset.status = snapshot.status;
+    statusEl.dataset.cue = snapshot.cue || "";
+    statusLabel.textContent = snapshot.status;
+    lifecycleEl.textContent = snapshot.lifecycle === "running" ? "Running" : "Released";
+    messageEl.textContent = snapshot.message;
+    faceCountEl.textContent = String(snapshot.faceCount);
+    directionEl.textContent = snapshot.direction || "—";
+    markState(snapshot.status, snapshot.cue);
+    if (snapshot.pose) {
+      const pose = snapshot.pose;
+      metricsEl.textContent = `${pose.pitch.toFixed(2)} / ${pose.yaw.toFixed(2)} / ${pose.gazeY.toFixed(2)} / ${pose.gazeX.toFixed(2)}`;
+      const x = Math.max(-1, Math.min(1, (-pose.yaw / 0.22) + (-pose.gazeX / 0.28)));
+      const y = Math.max(-1, Math.min(1, (pose.pitch - 0.55) / 0.23));
+      poseDot.style.left = `${50 + x * 36}%`;
+      poseDot.style.top = `${50 + y * 36}%`;
+    } else {
+      metricsEl.textContent = "—";
+      poseDot.style.left = "50%";
+      poseDot.style.top = "50%";
+    }
+    drawOverlay(snapshot);
+    if (monitor) renderEvents(monitor.getSummary());
+  }
+
+  function clock(ms) {
+    return new Date(ms).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+  }
+
+  function renderEvents(summary) {
+    if (!summary) return;
+    const rows = summary.byDirection || [];
+    const seconds = (summary.totalLookingAwayMs / 1000).toFixed(1);
+    eventSummary.textContent = summary.totalLookingAwayEvents === 0
+      ? "No look-away recorded yet."
+      : `${summary.totalLookingAwayEvents} time${summary.totalLookingAwayEvents === 1 ? "" : "s"} · ${seconds}s total`;
+    tally.replaceChildren(...rows.map((row) => {
+      const item = document.createElement("div");
+      item.className = "tally-row";
+      item.textContent = "";
+      const name = document.createElement("span");
+      name.textContent = row.label;
+      const count = document.createElement("b");
+      count.textContent = `${row.count}×`;
+      const duration = document.createElement("span");
+      duration.textContent = `${(row.durationMs / 1000).toFixed(1)}s`;
+      item.append(name, count, duration);
+      return item;
+    }));
+    eventList.replaceChildren(...summary.events.map((event) => {
+      const item = document.createElement("li");
+      const end = event.ongoing ? "in progress" : clock(event.endMs);
+      item.classList.toggle("ongoing", event.ongoing);
+      item.textContent = `${event.direction} · ${clock(event.startMs)} – ${end} · ${(event.durationMs / 1000).toFixed(1)}s`;
+      return item;
+    }));
+  }
+
+  function drawOverlay(snapshot) {
+    const width = video.videoWidth;
+    const height = video.videoHeight;
+    if (!width || !height) return;
+    if (canvas.width !== width) canvas.width = width;
+    if (canvas.height !== height) canvas.height = height;
+    ctx.clearRect(0, 0, width, height);
+    ctx.strokeStyle = snapshot.cue === "ok" ? "#5EAE7E" : "#D6A94A";
+    ctx.lineWidth = 3;
+    for (const box of snapshot.boxes || []) {
+      ctx.strokeRect(box.x * width, box.y * height, box.width * width, box.height * height);
+    }
+  }
+
+  function cameraErrorMessage(error) {
+    if (error?.name === "NotAllowedError") return "Camera permission was denied.";
+    if (error?.name === "NotFoundError") return "No camera was found.";
+    if (error?.name === "NotReadableError") return "The camera is already in use.";
+    return error?.message || "Could not open the camera.";
+  }
+
+  async function startCamera() {
+    errorEl.textContent = "";
+    lastSpokenStatus = "";
+    startBtn.disabled = true;
+    startBtn.textContent = "Starting…";
+    try {
+      const cameraPromise = navigator.mediaDevices.getUserMedia({
+        video: { facingMode: "user", width: { ideal: 640 }, height: { ideal: 480 } },
+        audio: false,
+      });
+      const [opened] = await Promise.all([cameraPromise, preloadAttentionEngine()]);
+      stream = opened;
+      video.srcObject = stream;
+      placeholder.hidden = true;
+      await video.play();
+      renderEvents({ totalLookingAwayEvents: 0, totalLookingAwayMs: 0, events: [] });
+
+      monitor = createAttentionMonitor({
+        video,
+        onFrame: render,
+        onStatusChange: render,
+        onError: (error) => {
+          errorEl.textContent = error.message;
+        },
+      });
+      await monitor.start();
+      stopBtn.disabled = false;
+      startBtn.textContent = "Start camera";
+    } catch (error) {
+      cleanupStream();
+      setUnavailable(cameraErrorMessage(error));
+      errorEl.textContent = cameraErrorMessage(error);
+      startBtn.disabled = false;
+      startBtn.textContent = "Start camera";
+    }
+  }
+
+  function cleanupStream() {
+    monitor?.destroy();
+    monitor = null;
+    if (stream) {
+      for (const track of stream.getTracks()) track.stop();
+      stream = null;
+    }
+    video.srcObject = null;
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    placeholder.hidden = false;
+  }
+
+  function stopCamera() {
+    monitor?.stop();
+    if (monitor) renderEvents(monitor.getSummary());
+    cleanupStream();
+    setUnavailable("Detection stopped. The camera is off.");
+    startBtn.disabled = false;
+    stopBtn.disabled = true;
+    errorEl.textContent = "";
+  }
+
+  startBtn.addEventListener("click", startCamera);
+  stopBtn.addEventListener("click", stopCamera);
+  window.addEventListener("pagehide", cleanupStream);
+</script>
+</body>
+</html>

@@ -399,7 +399,10 @@ function showView(id) {
 /* ============================ LANDING -> SETUP =========================== */
 
 document.getElementById("startBtn").addEventListener("click", () => showView("view-setup"));
-document.getElementById("brandHome").addEventListener("click", () => showView("view-landing"));
+document.getElementById("brandHome").addEventListener("click", () => {
+  finishAttention();
+  showView("view-landing");
+});
 document.getElementById("backToLanding").addEventListener("click", () => showView("view-landing"));
 
 function wirePillGroup(groupId, stateKey) {
@@ -450,6 +453,7 @@ document.getElementById("beginInterview").addEventListener("click", async () => 
     document.getElementById("topStatus").textContent = state.candidate.role;
     loadQuestion();
     showView("view-interview");
+    startAttention();
   } catch (err) {
     alert(err.message || "Something went wrong starting the interview.");
   } finally {
@@ -708,7 +712,8 @@ async function finishSession() {
     });
     await new Promise(r => setTimeout(r, 500));
 
-    renderReport(readiness, summary);
+    const attention = await finishAttention();
+    renderReport(readiness, summary, attention);
     showView("view-report");
   } catch (err) {
     alert(err.message || "Something went wrong generating the final report.");
@@ -716,7 +721,7 @@ async function finishSession() {
   }
 }
 
-function renderReport(readiness, summary) {
+function renderReport(readiness, summary, attention) {
   document.getElementById("reportName").textContent = `${state.candidate.name}'s interview report`;
   document.getElementById("readinessNum").textContent = readiness;
   document.getElementById("readinessBlurb").textContent = summary;
@@ -769,6 +774,8 @@ function renderReport(readiness, summary) {
       ` : ""}
     </div>
   `).join("");
+
+  renderAttentionReport(attention);
 }
 
 function escapeHtml(str) {
@@ -780,6 +787,7 @@ function escapeHtml(str) {
 document.getElementById("restartBtn").addEventListener("click", () => {
   VoiceUtils.stopSpeaking();
   VoiceUtils.stopListening();
+  finishAttention();
   state.questions = [];
   state.currentIndex = 0;
   state.evaluations = [];
@@ -795,4 +803,168 @@ document.getElementById("restartBtn").addEventListener("click", () => {
 window.addEventListener("beforeunload", () => {
   VoiceUtils.stopSpeaking();
   VoiceUtils.stopListening();
+  finishAttention();
 });
+
+/* ============================ ATTENTION MONITOR =========================== */
+/* Shared webcam for the whole interview. The module does not open the camera. */
+
+let attentionMonitor = null;
+let attentionStream = null;
+let attentionSession = 0;
+
+function attentionErrorMessage(error) {
+  if (error?.name === "NotAllowedError") return "Camera permission was denied.";
+  if (error?.name === "NotFoundError") return "No camera was found.";
+  if (error?.name === "NotReadableError") return "The camera is already in use.";
+  return error?.message || "Attention monitoring is unavailable.";
+}
+
+function showAttention(status, message, cue) {
+  const dock = document.getElementById("attentionDock");
+  const badge = document.getElementById("attentionStatus");
+  dock.hidden = false;
+  badge.dataset.status = status;
+  badge.dataset.cue = cue || "";
+  document.getElementById("attentionLabel").textContent = status;
+  document.getElementById("attentionMessage").textContent = message;
+}
+
+function renderAttention(snapshot) {
+  showAttention(snapshot.status, snapshot.message, snapshot.cue);
+}
+
+let lastSpokenAttention = "";
+
+function attentionAlertLine(snapshot) {
+  if (snapshot.status === "LOOKING_AWAY") {
+    if (snapshot.direction === "closed") return "Your eyes are closed. Please look at the screen.";
+    if (snapshot.direction === "down") return "You're looking down. Please look back at the screen.";
+    return "You're looking away. Please look back at the screen.";
+  }
+  if (snapshot.status === "FACE_NOT_DETECTED") {
+    return "I can't see your face. Please come back in front of the camera.";
+  }
+  if (snapshot.status === "MULTIPLE_FACES") {
+    return "More than one face is visible.";
+  }
+  return "";
+}
+
+function speakAttentionAlert(snapshot) {
+  if (snapshot.status === lastSpokenAttention) return;
+  lastSpokenAttention = snapshot.status;
+  const line = attentionAlertLine(snapshot);
+  if (!line || !("speechSynthesis" in window)) return;
+  const utterance = new SpeechSynthesisUtterance(line);
+  utterance.lang = "en-US";
+  utterance.rate = 1;
+  window.speechSynthesis.speak(utterance);
+}
+
+async function startAttention() {
+  const session = ++attentionSession;
+  lastSpokenAttention = "";
+  const video = document.getElementById("interviewVideo");
+  showAttention("UNAVAILABLE", "Opening camera…", "");
+  try {
+    const modulePromise = import("./attention/attentionMonitor.js").then(async (mod) => {
+      await mod.preloadAttentionEngine();
+      return mod;
+    });
+    const cameraPromise = navigator.mediaDevices.getUserMedia({
+      video: { facingMode: "user", width: { ideal: 640 }, height: { ideal: 480 } },
+      audio: false,
+    });
+    const [mod, stream] = await Promise.all([modulePromise, cameraPromise]);
+    if (session !== attentionSession) {
+      stream.getTracks().forEach((track) => track.stop());
+      return;
+    }
+    const { createAttentionMonitor } = mod;
+    attentionStream = stream;
+    if (session !== attentionSession) {
+      attentionStream.getTracks().forEach((track) => track.stop());
+      attentionStream = null;
+      return;
+    }
+    video.srcObject = attentionStream;
+    await video.play();
+    attentionMonitor = createAttentionMonitor({
+      video,
+      onFrame: renderAttention,
+      onStatusChange(snapshot) {
+        renderAttention(snapshot);
+        speakAttentionAlert(snapshot);
+      },
+    });
+    await attentionMonitor.start();
+    if (session !== attentionSession) {
+      await finishAttention();
+    }
+  } catch (error) {
+    if (session !== attentionSession) return;
+    attentionMonitor?.destroy();
+    attentionMonitor = null;
+    if (attentionStream) {
+      attentionStream.getTracks().forEach((track) => track.stop());
+      attentionStream = null;
+    }
+    video.srcObject = null;
+    showAttention("UNAVAILABLE", attentionErrorMessage(error), "");
+  }
+}
+
+async function finishAttention() {
+  attentionSession += 1;
+  const monitor = attentionMonitor;
+  const stream = attentionStream;
+  attentionMonitor = null;
+  attentionStream = null;
+  let summary = null;
+  try {
+    monitor?.stop();
+    summary = monitor?.getSummary() ?? null;
+  } finally {
+    monitor?.destroy();
+    if (stream) stream.getTracks().forEach((track) => track.stop());
+    const video = document.getElementById("interviewVideo");
+    if (video) video.srcObject = null;
+    document.getElementById("attentionDock").hidden = true;
+  }
+  return summary;
+}
+
+function renderAttentionReport(summary) {
+  const summaryEl = document.getElementById("attentionReportSummary");
+  const tallyEl = document.getElementById("attentionTally");
+  const listEl = document.getElementById("attentionReportList");
+  if (!summary) {
+    summaryEl.textContent = "Attention monitoring was unavailable for this session.";
+    tallyEl.innerHTML = "";
+    listEl.innerHTML = "";
+    return;
+  }
+  const rows = summary.byDirection || [];
+  const count = summary.totalLookingAwayEvents;
+  const seconds = (summary.totalLookingAwayMs / 1000).toFixed(1);
+  summaryEl.textContent = count === 0
+    ? "Looked toward the screen for the whole session."
+    : `Looked away ${count} time${count === 1 ? "" : "s"}, for ${seconds}s total.`;
+  tallyEl.innerHTML = rows.map((row) => `
+    <div><span>${escapeHtml(row.label)}</span><b>${row.count}× · ${(row.durationMs / 1000).toFixed(1)}s</b></div>
+  `).join("");
+  listEl.innerHTML = summary.events.map((event) => {
+    const end = event.ongoing ? "session end" : clockTime(event.endMs);
+    const label = rows.find((row) => row.direction === event.direction)?.label || event.direction;
+    return `<li>${escapeHtml(label)} · ${escapeHtml(clockTime(event.startMs))} – ${escapeHtml(end)} · ${(event.durationMs / 1000).toFixed(1)}s</li>`;
+  }).join("");
+}
+
+function clockTime(ms) {
+  return new Date(ms).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+}
+
+import("./attention/attentionMonitor.js")
+  .then((mod) => mod.preloadAttentionEngine())
+  .catch(() => {});
