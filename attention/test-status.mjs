@@ -209,6 +209,7 @@ assert.equal(appSource.includes("attentionAlertLine"), false);
 assert.equal(appSource.includes("lastSpokenAttention"), false);
 assert.equal(appSource.includes("speechSynthesis"), false);
 assert.equal(demoSource.includes("speechSynthesis"), false);
+assert.equal(demoSource.includes("lastSpokenStatus"), false);
 assert.equal(source.includes("direction: \"closed\""), false);
 assert.equal(source.includes("direction: \"down\""), false);
 

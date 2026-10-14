@@ -780,7 +780,7 @@ export function createAttentionMonitor({
       let status = statusFromFaceCount(faceCount);
       let message = messageForStatus(status);
       let direction = "center";
-      let cue = status === AttentionStatus.ATTENTIVE ? "ok" : "warn";
+      let cue = status === AttentionStatus.ATTENTIVE ? "ok" : "idle";
       let pose = null;
 
       if (faceCount === 1) {

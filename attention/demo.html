@@ -319,7 +319,10 @@
   function markState(status, cue) {
     for (const item of stateItems) {
       item.classList.toggle("active", item.dataset.state === status);
-      item.classList.toggle("pending", cue === "warn" && item.dataset.state === AttentionStatus.LOOKING_AWAY);
+      const pendingLook = cue === "warn"
+        && status === AttentionStatus.ATTENTIVE
+        && item.dataset.state === AttentionStatus.LOOKING_AWAY;
+      item.classList.toggle("pending", pendingLook);
     }
   }
 
@@ -404,7 +407,6 @@
 
   async function startCamera() {
     errorEl.textContent = "";
-    lastSpokenStatus = "";
     startBtn.disabled = true;
     startBtn.textContent = "Starting…";
     try {
