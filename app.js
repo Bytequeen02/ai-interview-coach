@@ -453,7 +453,9 @@ document.getElementById("beginInterview").addEventListener("click", async () => 
     document.getElementById("topStatus").textContent = state.candidate.role;
     loadQuestion();
     showView("view-interview");
-    startAttention();
+    const monitoringOn = document.getElementById("attentionEnabled").checked;
+    if (monitoringOn) startAttention();
+    else attentionChoice = "off";
   } catch (err) {
     alert(err.message || "Something went wrong starting the interview.");
   } finally {
@@ -716,6 +718,7 @@ async function finishSession() {
     renderReport(readiness, summary, attention);
     showView("view-report");
   } catch (err) {
+    await finishAttention();
     alert(err.message || "Something went wrong generating the final report.");
     showView("view-feedback");
   }
@@ -812,6 +815,7 @@ window.addEventListener("beforeunload", () => {
 let attentionMonitor = null;
 let attentionStream = null;
 let attentionSession = 0;
+let attentionChoice = "off";
 
 function attentionErrorMessage(error) {
   if (error?.name === "NotAllowedError") return "Camera permission was denied.";
@@ -834,37 +838,9 @@ function renderAttention(snapshot) {
   showAttention(snapshot.status, snapshot.message, snapshot.cue);
 }
 
-let lastSpokenAttention = "";
-
-function attentionAlertLine(snapshot) {
-  if (snapshot.status === "LOOKING_AWAY") {
-    if (snapshot.direction === "closed") return "Your eyes are closed. Please look at the screen.";
-    if (snapshot.direction === "down") return "You're looking down. Please look back at the screen.";
-    return "You're looking away. Please look back at the screen.";
-  }
-  if (snapshot.status === "FACE_NOT_DETECTED") {
-    return "I can't see your face. Please come back in front of the camera.";
-  }
-  if (snapshot.status === "MULTIPLE_FACES") {
-    return "More than one face is visible.";
-  }
-  return "";
-}
-
-function speakAttentionAlert(snapshot) {
-  if (snapshot.status === lastSpokenAttention) return;
-  lastSpokenAttention = snapshot.status;
-  const line = attentionAlertLine(snapshot);
-  if (!line || !("speechSynthesis" in window)) return;
-  const utterance = new SpeechSynthesisUtterance(line);
-  utterance.lang = "en-US";
-  utterance.rate = 1;
-  window.speechSynthesis.speak(utterance);
-}
-
 async function startAttention() {
   const session = ++attentionSession;
-  lastSpokenAttention = "";
+  attentionChoice = "on";
   const video = document.getElementById("interviewVideo");
   showAttention("UNAVAILABLE", "Opening camera…", "");
   try {
@@ -893,10 +869,7 @@ async function startAttention() {
     attentionMonitor = createAttentionMonitor({
       video,
       onFrame: renderAttention,
-      onStatusChange(snapshot) {
-        renderAttention(snapshot);
-        speakAttentionAlert(snapshot);
-      },
+      onStatusChange: renderAttention,
     });
     await attentionMonitor.start();
     if (session !== attentionSession) {
@@ -904,8 +877,7 @@ async function startAttention() {
     }
   } catch (error) {
     if (session !== attentionSession) return;
-    attentionMonitor?.destroy();
-    attentionMonitor = null;
+    attentionChoice = "failed";
     if (attentionStream) {
       attentionStream.getTracks().forEach((track) => track.stop());
       attentionStream = null;
@@ -937,26 +909,45 @@ async function finishAttention() {
 
 function renderAttentionReport(summary) {
   const summaryEl = document.getElementById("attentionReportSummary");
+  const noteEl = document.getElementById("attentionReportNote");
   const tallyEl = document.getElementById("attentionTally");
   const listEl = document.getElementById("attentionReportList");
-  if (!summary) {
-    summaryEl.textContent = "Attention monitoring was unavailable for this session.";
+  if (attentionChoice === "off") {
+    summaryEl.textContent = "Camera attention monitoring was off, so the camera was not opened.";
+    noteEl.textContent = "No video was uploaded or saved.";
     tallyEl.innerHTML = "";
     listEl.innerHTML = "";
     return;
   }
-  const rows = summary.byDirection || [];
-  const count = summary.totalLookingAwayEvents;
-  const seconds = (summary.totalLookingAwayMs / 1000).toFixed(1);
-  summaryEl.textContent = count === 0
-    ? "Looked toward the screen for the whole session."
-    : `Looked away ${count} time${count === 1 ? "" : "s"}, for ${seconds}s total.`;
-  tallyEl.innerHTML = rows.map((row) => `
-    <div><span>${escapeHtml(row.label)}</span><b>${row.count}× · ${(row.durationMs / 1000).toFixed(1)}s</b></div>
+  if (!summary) {
+    summaryEl.textContent = "Attention monitoring was unavailable for this session.";
+    noteEl.textContent = "No video was uploaded or saved. No attention score is calculated.";
+    tallyEl.innerHTML = "";
+    listEl.innerHTML = "";
+    return;
+  }
+  const measured = summary.measured || {};
+  const groups = [
+    measured.lookingAway,
+    measured.faceNotVisible,
+    measured.multipleFaces,
+    measured.unavailable,
+  ].filter(Boolean);
+  const seconds = ((summary.totalMonitoringMs || 0) / 1000).toFixed(1);
+  summaryEl.textContent = `Measured monitoring time: ${seconds}s.`;
+  noteEl.textContent = summary.disclaimer
+    || "Looking away is a potential attention change. It does not prove anything. No attention score is calculated.";
+  tallyEl.innerHTML = groups.map((group) => `
+    <div><span>${escapeHtml(group.label)}</span><b>${group.count}× · ${(group.totalMs / 1000).toFixed(1)}s</b></div>
   `).join("");
-  listEl.innerHTML = summary.events.map((event) => {
+  const rows = groups.flatMap((group) => group.events || []);
+  rows.sort((a, b) => a.startMs - b.startMs);
+  listEl.innerHTML = rows.map((event) => {
     const end = event.ongoing ? "session end" : clockTime(event.endMs);
-    const label = rows.find((row) => row.direction === event.direction)?.label || event.direction;
+    const names = { left: "Head turned left", right: "Head turned right", up: "Head turned up" };
+    const label = event.label || (names[event.direction]
+      ? `Potential attention change: ${names[event.direction]}`
+      : "Potential attention change");
     return `<li>${escapeHtml(label)} · ${escapeHtml(clockTime(event.startMs))} – ${escapeHtml(end)} · ${(event.durationMs / 1000).toFixed(1)}s</li>`;
   }).join("");
 }
@@ -965,6 +956,3 @@ function clockTime(ms) {
   return new Date(ms).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" });
 }
 
-import("./attention/attentionMonitor.js")
-  .then((mod) => mod.preloadAttentionEngine())
-  .catch(() => {});

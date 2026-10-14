@@ -12,8 +12,9 @@
      - two or more → MULTIPLE_FACES
      - no stream / model failure → UNAVAILABLE
 
-   Looking down at a phone or off to the side is an attention event,
-   not a cheating verdict. A short glance stays ATTENTIVE.
+   A sustained head turn is a potential attention change, not a verdict.
+   Blinks, closed eyes, and looking down stay ATTENTIVE. A short glance
+   stays ATTENTIVE. Nothing here is called cheating.
    ============================================================ */
 
 const VISION_VERSION = "0.10.32";
@@ -26,7 +27,7 @@ const FRAME_INTERVAL_MS = 100;
 const MAX_INFERENCE_FAILURES = 5;
 const POSE_SMOOTHING = 0.45;
 
-/** Head/gaze cutoffs. Tuned so a laptop screen is not "looking away", but a phone in the lap is. */
+/** Head-orientation cutoffs. Gaze and eye closure are not used for alerts. */
 export const POSE_THRESHOLDS = Object.freeze({
   yawAway: 0.22,
   pitchDown: 0.78,
@@ -112,7 +113,7 @@ export function messageForStatus(status) {
     case AttentionStatus.ATTENTIVE:
       return "Facing the screen.";
     case AttentionStatus.LOOKING_AWAY:
-      return "Looking away from the screen.";
+      return "Potential attention change.";
     case AttentionStatus.FACE_NOT_DETECTED:
       return "No face visible.";
     case AttentionStatus.MULTIPLE_FACES:
@@ -123,12 +124,13 @@ export function messageForStatus(status) {
 }
 
 const DIRECTION_LABELS = {
-  down: "Looked down",
-  up: "Looked up",
-  left: "Looked left",
-  right: "Looked right",
-  closed: "Eyes closed",
+  up: "Head turned up",
+  left: "Head turned left",
+  right: "Head turned right",
 };
+
+export const ATTENTION_DISCLAIMER =
+  "Looking away is a potential attention change. It does not prove distraction or dishonesty. These times are measured from the camera. No attention score is calculated.";
 
 /** How many times, and for how long, the person looked each way. */
 export function directionBreakdown(events) {
@@ -149,21 +151,15 @@ export function directionBreakdown(events) {
 }
 
 export function messageForDirection(direction, pending) {
-  const where = {
-    down: "down",
-    up: "up",
-    left: "to the side",
-    right: "to the side",
-  }[direction] || "away";
-  if (direction === "closed") {
-    return pending
-      ? "Eyes are closing. Waiting to confirm it is not a blink."
-      : "Eyes are closed.";
-  }
-  if (pending) {
-    return `Looking ${where}. Waiting to confirm it is not a quick glance.`;
-  }
-  return `Looking ${where}, away from the screen.`;
+  const supported = direction === "up" || direction === "left" || direction === "right";
+  if (!supported) return "Facing the screen.";
+  if (pending) return "Head is turning. Waiting to confirm it is not a brief glance.";
+  return "Potential attention change.";
+}
+
+/** A video track is usable only while it is live and enabled. */
+export function isVideoTrackLive(track) {
+  return Boolean(track && track.readyState === "live" && track.enabled !== false);
 }
 
 function landmarkAt(landmarks, index) {
@@ -312,52 +308,38 @@ export function smoothPose(previous, next) {
   };
 }
 
-/** Whether the smoothed pose counts as looking away from the screen. */
+/**
+ * Head orientation only. Looking down, closed eyes, and iris position
+ * stay attentive. A head turn to the side or up can be looking away.
+ */
 export function classifyPose(pose, thresholds = POSE_THRESHOLDS) {
   if (!pose) return { away: false, direction: "center", strong: false };
 
-  if (pose.eyeOpen != null && pose.eyeOpen < thresholds.eyeClosed) {
-    return { away: true, direction: "closed", strong: true };
-  }
-
-  const headDown = pose.pitch >= thresholds.pitchDown
-    || pose.pitchDepth >= thresholds.pitchDepthDown;
-  const eyesDown = pose.gazeY >= thresholds.gazeDown;
-  const down = eyesDown
-    || headDown
-    || pose.pitchDepth >= thresholds.pitchDepthDown + 0.25;
-  const up = pose.pitch <= thresholds.pitchUp || pose.gazeY <= thresholds.gazeUp;
-  const lookRight = pose.yaw >= thresholds.yawAway || pose.gazeX >= thresholds.gazeSide;
-  const lookLeft = pose.yaw <= -thresholds.yawAway || pose.gazeX <= -thresholds.gazeSide;
+  const lookRight = pose.yaw >= thresholds.yawAway
+    || (pose.matrixYaw != null && pose.matrixYaw >= thresholds.matrixYawAway);
+  const lookLeft = pose.yaw <= -thresholds.yawAway
+    || (pose.matrixYaw != null && pose.matrixYaw <= -thresholds.matrixYawAway);
+  const lookUp = pose.pitch <= thresholds.pitchUp
+    || (pose.matrixPitch != null && pose.matrixPitch <= -thresholds.matrixPitchAway);
 
   let direction = "center";
-  if (down) direction = "down";
-  else if (up) direction = "up";
-  else if (lookLeft) direction = "left";
+  if (lookLeft) direction = "left";
   else if (lookRight) direction = "right";
-  else if (pose.matrixPitch != null && Math.abs(pose.matrixPitch) >= thresholds.matrixPitchAway) {
-    direction = pose.matrixPitch > 0 ? "down" : "up";
-  } else if (pose.matrixYaw != null && Math.abs(pose.matrixYaw) >= thresholds.matrixYawAway) {
-    direction = pose.matrixYaw > 0 ? "right" : "left";
-  }
+  else if (lookUp) direction = "up";
 
   const away = direction !== "center";
   const strong = away && (
-    pose.pitch >= thresholds.pitchDown + 0.06
-    || pose.gazeY >= thresholds.gazeDown + 0.08
-    || pose.pitchDepth >= thresholds.pitchDepthDown + 0.2
-    || Math.abs(pose.yaw) >= thresholds.yawAway + 0.1
-    || Math.abs(pose.gazeX) >= thresholds.gazeSide + 0.18
-    || (pose.matrixPitch != null && Math.abs(pose.matrixPitch) >= thresholds.matrixPitchAway + 6)
+    Math.abs(pose.yaw) >= thresholds.yawAway + 0.1
     || (pose.matrixYaw != null && Math.abs(pose.matrixYaw) >= thresholds.matrixYawAway + 6)
+    || (direction === "up" && pose.pitch <= thresholds.pitchUp - 0.06)
   );
 
   return { away, direction, strong };
 }
 
 /**
- * Confirms looking-away only after a continuous grace period.
- * A clear look down (phone) confirms faster than a small turn.
+ * Confirms a head turn only after a continuous grace period.
+ * A hard turn confirms faster than a small one. One episode stays one event.
  */
 export function createPoseTracker({
   gracePeriodMs = DEFAULT_GRACE_MS,
@@ -476,6 +458,113 @@ export function createPoseTracker({
   return { update, interrupt, reset, summary };
 }
 
+const PRESENCE_LABELS = {
+  face_not_visible: "Face not visible",
+  multiple_faces: "Multiple faces",
+  unavailable: "Monitoring unavailable",
+};
+
+/**
+ * Timed episodes for face absence, extra faces, and camera loss.
+ * A brief absence is ignored. An ended camera track is recorded immediately.
+ */
+export function createPresenceLog({
+  graceMs = DEFAULT_GRACE_MS,
+  returnMs = DEFAULT_RETURN_GRACE_MS,
+} = {}) {
+  const events = [];
+  let pendingKind = null;
+  let pendingSince = null;
+  let active = null;
+  let clearSince = null;
+
+  function present(kind, startMs, endMs, ongoing) {
+    return {
+      kind,
+      label: PRESENCE_LABELS[kind] || kind,
+      startMs,
+      endMs,
+      durationMs: Math.max(0, endMs - startMs),
+      ongoing,
+      startIso: new Date(startMs).toISOString(),
+      endIso: ongoing ? null : new Date(endMs).toISOString(),
+    };
+  }
+
+  function close(now) {
+    if (!active) return null;
+    const closed = present(active.kind, active.startMs, now, false);
+    events.push(closed);
+    active = null;
+    pendingKind = null;
+    pendingSince = null;
+    clearSince = null;
+    return closed;
+  }
+
+  function update({ kind = null, now, immediate = false }) {
+    if (kind) {
+      clearSince = null;
+      if (active?.kind === kind) return { opened: null, closed: null };
+      const closed = active ? close(now) : null;
+      if (pendingKind !== kind) {
+        pendingKind = kind;
+        pendingSince = now;
+      }
+      const wait = immediate ? 0 : graceMs;
+      if (!active && pendingSince != null && now - pendingSince >= wait) {
+        active = { kind, startMs: pendingSince };
+        const opened = present(kind, active.startMs, now, true);
+        pendingKind = null;
+        pendingSince = null;
+        return { opened, closed };
+      }
+      return { opened: null, closed };
+    }
+
+    pendingKind = null;
+    pendingSince = null;
+    if (!active) {
+      clearSince = null;
+      return { opened: null, closed: null };
+    }
+    if (clearSince == null) clearSince = now;
+    if (now - clearSince >= returnMs) {
+      return { opened: null, closed: close(now) };
+    }
+    return { opened: null, closed: null };
+  }
+
+  function reset() {
+    events.length = 0;
+    active = null;
+    pendingKind = null;
+    pendingSince = null;
+    clearSince = null;
+  }
+
+  function summary(now = Date.now()) {
+    const open = active ? [present(active.kind, active.startMs, now, true)] : [];
+    const all = events.concat(open);
+    function group(kind) {
+      const rows = all.filter((event) => event.kind === kind);
+      return {
+        label: PRESENCE_LABELS[kind],
+        count: rows.length,
+        totalMs: rows.reduce((sum, event) => sum + event.durationMs, 0),
+        events: rows,
+      };
+    }
+    return {
+      faceNotVisible: group("face_not_visible"),
+      multipleFaces: group("multiple_faces"),
+      unavailable: group("unavailable"),
+    };
+  }
+
+  return { update, closeAll: close, reset, summary };
+}
+
 /** Normalized box {x, y, width, height} in 0–1 video space, or null. */
 export function boundsFromLandmarks(landmarks) {
   if (!landmarks || landmarks.length === 0) return null;
@@ -514,7 +603,7 @@ function clamp01(value) {
 function isStreamLive(video) {
   const stream = video?.srcObject;
   if (!stream || typeof stream.getVideoTracks !== "function") return false;
-  return stream.getVideoTracks().some((track) => track.readyState === "live" && track.enabled);
+  return stream.getVideoTracks().some((track) => isVideoTrackLive(track));
 }
 
 /**
@@ -526,7 +615,7 @@ function isStreamLive(video) {
  * @param {(event: object) => void} [options.onLookingAwayStart]
  * @param {(event: object) => void} [options.onLookingAwayEnd]
  * @param {number} [options.gracePeriodMs] Continuous off-screen look before LOOKING_AWAY.
- * @param {number} [options.strongGraceMs] Faster confirm for a clear look down or hard turn.
+ * @param {number} [options.strongGraceMs] Faster confirm for a hard head turn.
  * @returns {{ start: () => Promise<object>, stop: () => void, destroy: () => void, getSnapshot: () => object, getSummary: () => object }}
  */
 export function createAttentionMonitor({
@@ -541,6 +630,7 @@ export function createAttentionMonitor({
   returnGraceMs = DEFAULT_RETURN_GRACE_MS,
 } = {}) {
   const tracker = createPoseTracker({ gracePeriodMs, strongGraceMs, returnGraceMs });
+  const presence = createPresenceLog({ graceMs: gracePeriodMs, returnMs: returnGraceMs });
   const boundTracks = new Set();
   const state = {
     running: false,
@@ -592,9 +682,22 @@ export function createAttentionMonitor({
     boundTracks.clear();
   }
 
-  function markUnavailable(message) {
-    state.pose = null;
+  function haltLoop() {
     state.running = false;
+    if (state.rafId) {
+      cancelAnimationFrame(state.rafId);
+      state.rafId = 0;
+    }
+    unbindStream();
+  }
+
+  function markUnavailable(message) {
+    const now = Date.now();
+    const closed = tracker.interrupt(now);
+    if (closed) onLookingAwayEnd?.(closed);
+    presence.update({ kind: "unavailable", now, immediate: true });
+    state.pose = null;
+    haltLoop();
     publish({
       status: AttentionStatus.UNAVAILABLE,
       faceCount: 0,
@@ -602,7 +705,6 @@ export function createAttentionMonitor({
       message,
       cue: "idle",
     });
-    stop();
   }
 
   function publish({ status, faceCount, boxes, message, direction = "center", cue = "idle", pose = null }) {
@@ -691,6 +793,7 @@ export function createAttentionMonitor({
         state.pose = smoothPose(state.pose, raw);
         pose = state.pose;
         const judged = classifyPose(pose);
+        presence.update({ kind: null, now });
         const tracked = tracker.update({
           poseAway: judged.away,
           direction: judged.direction,
@@ -715,6 +818,10 @@ export function createAttentionMonitor({
         state.pose = null;
         const closed = tracker.interrupt(now);
         if (closed) onLookingAwayEnd?.(closed);
+        presence.update({
+          kind: faceCount === 0 ? "face_not_visible" : "multiple_faces",
+          now,
+        });
       }
 
       publish({ status, faceCount, boxes, message, direction, cue, pose });
@@ -728,28 +835,16 @@ export function createAttentionMonitor({
         state.switchingDelegate = true;
         switchToCpu()
           .catch((cpuError) => {
-          publish({
-            status: AttentionStatus.UNAVAILABLE,
-            faceCount: 0,
-            boxes: [],
-            message: "Face detection stopped working.",
-          });
-          onError?.(cpuError instanceof Error ? cpuError : new Error(String(cpuError)));
-            stop();
+            onError?.(cpuError instanceof Error ? cpuError : new Error(String(cpuError)));
+            markUnavailable("Face detection stopped working.");
           })
           .finally(() => {
             state.switchingDelegate = false;
           });
         return;
       }
-      publish({
-        status: AttentionStatus.UNAVAILABLE,
-        faceCount: 0,
-        boxes: [],
-        message: "Face detection stopped working.",
-      });
       onError?.(error instanceof Error ? error : new Error(String(error)));
-      stop();
+      markUnavailable("Face detection stopped working.");
     }
   }
 
@@ -780,20 +875,16 @@ export function createAttentionMonitor({
     state.failCount = 0;
     state.pose = null;
     state.sessionStartedAt = Date.now();
+    state.sessionEndedAt = null;
     tracker.reset();
+    presence.reset();
     bindStream();
     let landmarker;
     try {
       landmarker = await ensureLandmarker();
     } catch (error) {
-      state.running = false;
       const wrapped = error instanceof Error ? error : new Error(String(error));
-      publish({
-        status: AttentionStatus.UNAVAILABLE,
-        faceCount: 0,
-        boxes: [],
-        message: "Face detection model could not be loaded.",
-      });
+      markUnavailable("Face detection model could not be loaded.");
       onError?.(wrapped);
       throw wrapped;
     }
@@ -807,16 +898,13 @@ export function createAttentionMonitor({
   }
 
   function stop() {
-    state.running = false;
-    if (state.rafId) {
-      cancelAnimationFrame(state.rafId);
-      state.rafId = 0;
-    }
-    unbindStream();
+    haltLoop();
     if (!state.finalized) {
       state.finalized = true;
-      const closed = tracker.interrupt(Date.now());
+      state.sessionEndedAt = Date.now();
+      const closed = tracker.interrupt(state.sessionEndedAt);
       if (closed) onLookingAwayEnd?.(closed);
+      presence.closeAll(state.sessionEndedAt);
     }
     state.snapshot = { ...state.snapshot, running: false, lifecycle: "released" };
   }
@@ -840,7 +928,12 @@ export function createAttentionMonitor({
   }
 
   function getSummary() {
-    const report = tracker.summary(Date.now());
+    const now = state.sessionEndedAt || Date.now();
+    const report = tracker.summary(now);
+    const presenceReport = presence.summary(now);
+    const totalMonitoringMs = state.sessionStartedAt
+      ? Math.max(0, now - state.sessionStartedAt)
+      : 0;
     return {
       ...report,
       finalStatus: state.snapshot.status,
@@ -848,7 +941,23 @@ export function createAttentionMonitor({
       sessionStartedAtIso: state.sessionStartedAt
         ? new Date(state.sessionStartedAt).toISOString()
         : null,
+      sessionEndedAtMs: state.sessionEndedAt,
+      totalMonitoringMs,
+      disclaimer: ATTENTION_DISCLAIMER,
       byDirection: directionBreakdown(report.events),
+      measured: {
+        totalMonitoringMs,
+        lookingAway: {
+          label: "Potential attention change",
+          count: report.totalLookingAwayEvents,
+          totalMs: report.totalLookingAwayMs,
+          events: report.events,
+        },
+        faceNotVisible: presenceReport.faceNotVisible,
+        multipleFaces: presenceReport.multipleFaces,
+        unavailable: presenceReport.unavailable,
+      },
+      estimates: [],
     };
   }
 

@@ -334,6 +334,10 @@
   .attention-badge[data-cue="warn"]{ color: var(--mid); background: var(--mid-bg); }
   .attention-badge[data-status="UNAVAILABLE"]{ color: var(--bad); background: var(--bad-bg); }
   .attention-dock p{ margin: 6px 0 0; color: var(--muted); font-size: 12px; line-height: 1.4; }
+  .attention-notice{ font-size: 11px; }
+  .check-row{ display: flex; gap: 10px; align-items: flex-start; font-weight: 600; cursor: pointer; }
+  .check-row input{ margin-top: 4px; }
+  #attentionReportNote{ color: var(--muted); font-size: 13.5px; }
   .attention-report{ margin: 8px 0 28px; }
   .attention-report h3{ margin: 0 0 8px; font-size: 15px; }
   .attention-report p{ margin: 0; color: var(--text); line-height: 1.5; }

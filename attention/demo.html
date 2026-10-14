@@ -208,7 +208,7 @@
   <h1>Attention, live.</h1>
   <p class="lede">
     The camera stays on your machine. Face the screen and the status stays attentive.
-    Look away and it says so once, out loud, then writes down the time. Nothing is uploaded, and nothing is called cheating.
+    A sustained head turn is logged on screen. Nothing is spoken, uploaded, or called cheating.
   </p>
   <p class="engine" id="engineNote"><i></i><span>Preparing detection…</span></p>
 
@@ -301,30 +301,6 @@
 
   let stream = null;
   let monitor = null;
-  let lastSpokenStatus = "";
-
-  function speakStatus(snapshot) {
-    if (snapshot.status === lastSpokenStatus) return;
-    lastSpokenStatus = snapshot.status;
-    if (!("speechSynthesis" in window)) return;
-    let line = "";
-    if (snapshot.status === "LOOKING_AWAY") {
-      line = snapshot.direction === "closed"
-        ? "Your eyes are closed. Please look at the screen."
-        : snapshot.direction === "down"
-          ? "You're looking down. Please look back at the screen."
-          : "You're looking away. Please look back at the screen.";
-    } else if (snapshot.status === "FACE_NOT_DETECTED") {
-      line = "I can't see your face. Please come back in front of the camera.";
-    } else if (snapshot.status === "MULTIPLE_FACES") {
-      line = "More than one face is visible.";
-    }
-    if (!line) return;
-    const utterance = new SpeechSynthesisUtterance(line);
-    utterance.lang = "en-US";
-    utterance.rate = 1;
-    window.speechSynthesis.speak(utterance);
-  }
 
   function setUnavailable(message) {
     statusEl.dataset.status = AttentionStatus.UNAVAILABLE;
@@ -348,7 +324,6 @@
   }
 
   function render(snapshot) {
-    speakStatus(snapshot);
     statusEl.dataset.status = snapshot.status;
     statusEl.dataset.cue = snapshot.cue || "";
     statusLabel.textContent = snapshot.status;

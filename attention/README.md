@@ -1,18 +1,83 @@
 # Attention monitor — guide for the team
 
-Ankita built this. Read it before changing the webcam, the interview screen, or the report.
+Ankita built this. It watches a `<video>` the interview page already opened and reports whether the candidate's head stays toward the screen.
 
-The module watches a `<video>` and reports whether the candidate is facing the screen. It does **not** open the camera, record video, upload frames, or call the backend. Do not label the result as cheating. Say attention or possible distraction.
+It does not open the camera, record video, upload frames, or call the backend. It does not speak. It does not calculate a cheating score or any attention score. Say "potential attention change" or "possible distraction".
+
+## Open it the right way
+
+Use **Live Server** or **localhost**. Example:
+
+```bash
+py -3.11 -m http.server 5500
+```
+
+Then open `http://127.0.0.1:5500/`.
+
+Do not open the files with `file://`. This module is an ES module (`import`). Browsers block those imports, and the face model, from a `file://` page.
+
+## What loads, and when
+
+Before the user clicks **Begin interview**, the interview page loads only its own HTML, CSS, and scripts (`index.html`, `styles.css`, `app.js`, `speech.js`). It does **not** open the camera and does **not** download the face model.
+
+The setup screen has a checkbox, **Use camera attention monitoring**, on by default. If the user unchecks it, the interview never calls `getUserMedia` and never loads the detector.
+
+If the box stays checked, **Begin interview** then loads:
+
+| Piece | Where it comes from |
+|---|---|
+| Library | `@mediapipe/tasks-vision@0.10.32` from `https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.32` |
+| WASM runtime | same package, `/wasm` (GPU, then CPU if GPU fails) |
+| Face model | `https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task` |
+
+No webcam frame or image is uploaded or stored. Processing stays in the browser. While the dock is visible it says: "Camera attention monitoring is on. Video is processed on your device and is not uploaded or saved."
 
 ## Who touches what
 
 | Person | Do this | Do not do this |
 |---|---|---|
-| Ankita | `attention/` — detection, statuses, events, summary shape | — |
-| Vanshika | Restyle `#attentionDock` and the report section if needed | Do not call `getUserMedia` again. One camera already exists. |
-| Kashish | Optional: store `getSummary()` on the report API | Do not run a second face model on the server. No video is available to send. |
+| Ankita | `attention/` — detection, statuses, events, summary | — |
+| Vanshika | Restyle `#attentionDock` and the report section if needed | Do not open a second camera |
+| Kashish | Optional: store `getSummary()` on the report API | Do not expect a video file. There isn't one |
 
-The interview is already wired. `app.js` opens the camera when the interview starts, keeps that one stream across questions and feedback, and writes the summary onto the report. `attention/demo.html` is only the manual test page. It also opens a camera, but only for that page.
+`app.js` owns the interview camera. `attention/demo.html` opens a camera only on that test page.
+
+## What the status means
+
+Head orientation only. Blinks, closed eyes, and looking down (thinking or notes) stay `ATTENTIVE`. Iris position is not treated as eye tracking.
+
+| Situation | Status |
+|---|---|
+| One face, head toward the screen | `ATTENTIVE` |
+| Head turned aside or up, after the grace period | `LOOKING_AWAY` (potential attention change) |
+| No face, after the grace period is also stored as an episode | `FACE_NOT_DETECTED` |
+| Two or more faces | `MULTIPLE_FACES` |
+| Camera denied, track ended, or model failed | `UNAVAILABLE` |
+
+A brief glance is not stored. A hard head turn confirms in about 0.45 s. A milder turn confirms after about 1.2 s. Turning back for about 0.4 s returns to `ATTENTIVE`. One continuous turn is one event, not one event per frame.
+
+If the video track ends, the loop stops, listeners are removed, and the status becomes `UNAVAILABLE`. That gap is stored until the interview stops the monitor. The module does not stop camera tracks itself. The page does, so the camera light goes off.
+
+## Report object
+
+`getSummary()` after `stop()`:
+
+```js
+{
+  totalMonitoringMs: 120000,
+  disclaimer: "Looking away is a potential attention change. ...",
+  measured: {
+    totalMonitoringMs: 120000,
+    lookingAway: { label: "Potential attention change", count: 1, totalMs: 3000, events: [] },
+    faceNotVisible: { label: "Face not visible", count: 0, totalMs: 0, events: [] },
+    multipleFaces: { label: "Multiple faces", count: 0, totalMs: 0, events: [] },
+    unavailable: { label: "Monitoring unavailable", count: 0, totalMs: 0, events: [] }
+  },
+  estimates: []
+}
+```
+
+`measured` is what the camera actually timed. `estimates` is always empty. There is no overall score.
 
 ## Files
 
@@ -21,125 +86,6 @@ The interview is already wired. `app.js` opens the camera when the interview sta
 | `attention/attentionMonitor.js` | Import this. No build step. |
 | `attention/demo.html` | Manual webcam test. |
 | `attention/test-status.mjs` | Automated checks. No camera. |
-| `attention/WORK-REPORT.md` | Full write-up of the task, the stack, and how detection works. |
-
-## Camera rules
-
-1. Call `getUserMedia` once. Set `video.srcObject`. The interview id is `#interviewVideo`.
-2. Pass that same element to `createAttentionMonitor`.
-3. On the report, call `stop()`, then `getSummary()`, then stop the tracks, then `destroy()`.
-4. `stop()` and `destroy()` do not stop tracks. The page must stop them.
-5. `start()` after `destroy()` throws. Create a new monitor for the next interview.
-6. Calling `stop()` twice does not record a second event.
-7. Keep one monitor for the whole interview. Do not restart it per question.
-8. If `getUserMedia` fails, skip `start()`. The interview must continue. Status is `UNAVAILABLE`.
-
-`window.AttentionMonitor.createAttentionMonitor` is the same function after the module loads.
-
-## Plug-in
-
-```html
-<video id="interviewVideo" playsinline muted autoplay></video>
-
-<script type="module">
-  import { createAttentionMonitor, preloadAttentionEngine } from "./attention/attentionMonitor.js";
-
-  await preloadAttentionEngine();
-  const video = document.querySelector("#interviewVideo");
-  const stream = await navigator.mediaDevices.getUserMedia({
-    video: { facingMode: "user" },
-    audio: false,
-  });
-  video.srcObject = stream;
-  await video.play();
-
-  const monitor = createAttentionMonitor({
-    video,
-    onStatusChange(snapshot) {
-      // snapshot.status, snapshot.message, snapshot.direction
-    },
-    onLookingAwayEnd(event) {
-      // event.direction, event.startIso, event.endIso, event.durationMs
-    },
-  });
-  await monitor.start();
-
-  monitor.stop();
-  const attention = monitor.getSummary();
-  for (const track of stream.getTracks()) track.stop();
-  monitor.destroy();
-</script>
-```
-
-`app.js` already does this. Copy the block only if you build a new page.
-
-Spoken lines (“You’re looking down…”) live in `app.js` (`speakAttentionAlert`). They use `SpeechSynthesisUtterance` and do not cancel the interview question. The module itself does not speak.
-
-## Live snapshot
-
-`onStatusChange` runs when `status` changes. `onFrame` runs about 10 times a second.
-
-| Field | Meaning |
-|---|---|
-| `status` | `ATTENTIVE`, `LOOKING_AWAY`, `FACE_NOT_DETECTED`, `MULTIPLE_FACES`, `UNAVAILABLE` |
-| `message` | Short line. Safe to show as-is. |
-| `direction` | `center`, `down`, `up`, `left`, `right`, `closed` |
-| `cue` | `ok` facing the screen, `warn` during grace, `away` once confirmed |
-| `faceCount` | Faces in this frame |
-| `lifecycle` | `idle`, `running`, `released` |
-| `pose` | Smoothed yaw, pitch, gaze. Optional. |
-
-| Situation | Status |
-|---|---|
-| One face, looking at the screen | `ATTENTIVE` |
-| Looking down, up, aside, or eyes closed, after the grace period | `LOOKING_AWAY` |
-| No face | `FACE_NOT_DETECTED` |
-| Two or more faces | `MULTIPLE_FACES` |
-| Camera denied, stream ended, or model failed | `UNAVAILABLE` |
-
-A glance under the grace period stays `ATTENTIVE` (`cue` may be `warn`). A clear look down or closed eyes confirms in about 0.45 s. A milder look confirms after about 1.2 s. Looking back for about 0.4 s returns to `ATTENTIVE`.
-
-## Report object
-
-Call `getSummary()` after `stop()`. This is the object to show, and the object to store if the backend later wants it. Do not send the video.
-
-```js
-{
-  finalStatus: "ATTENTIVE",
-  sessionStartedAtMs: 1710000000000,
-  sessionStartedAtIso: "2026-10-14T07:30:00.000Z",
-  totalLookingAwayEvents: 2,
-  totalLookingAwayMs: 8400,
-  byDirection: [
-    { direction: "down", label: "Looked down", count: 1, durationMs: 3500 },
-    { direction: "left", label: "Looked left", count: 1, durationMs: 4900 }
-  ],
-  events: [
-    {
-      direction: "down",
-      startMs: 1710000001000,
-      endMs: 1710000004500,
-      startIso: "2026-10-14T07:30:01.000Z",
-      endIso: "2026-10-14T07:30:04.500Z",
-      durationMs: 3500,
-      ongoing: false
-    }
-  ]
-}
-```
-
-`direction` on an event is `down`, `up`, `left`, `right`, or `closed`. `byDirection` is the “how many times, which way” tally. The report page already renders it.
-
-## Dependency
-
-Loaded inside `attentionMonitor.js`. No npm install.
-
-- Google MediaPipe Tasks Vision
-- Package `@mediapipe/tasks-vision@0.10.32` from jsDelivr
-- Face Landmarker model `face_landmarker.task` (float16)
-- WASM runtime, GPU then CPU
-
-Serve the site over HTTP. `file://` will not load the model. The longer explanation is in `WORK-REPORT.md`.
 
 ## Test
 
@@ -149,13 +95,17 @@ node attention/test-status.mjs
 
 Expected: `attention status tests passed`.
 
-Manual, after Ctrl+F5, on `http://127.0.0.1:5500/attention/demo.html`:
+### Manual webcam checklist
 
-- One person facing the screen → `ATTENTIVE`
-- Hold a look down, aside, or close the eyes for about a second → `LOOKING_AWAY`, and a row in the side tally
-- Look back → `ATTENTIVE`
-- A quick glance → no new row
-- Leave the frame → `FACE_NOT_DETECTED`
-- Two people → `MULTIPLE_FACES`
-- Deny the camera → `UNAVAILABLE`, page stays up
-- Stop → tally stays, camera light goes off
+Hard-refresh (Ctrl+F5), then use Live Server or `http://127.0.0.1:5500/`.
+
+- [ ] Face visible and head toward the screen → `ATTENTIVE`, silent badge only
+- [ ] Cover or leave the frame and hold it → `FACE_NOT_DETECTED`, then a face-not-visible row on the report
+- [ ] Turn your head and hold it → `LOOKING_AWAY`. Looking down or closing your eyes stays `ATTENTIVE`
+- [ ] A quick glance → no new report row. A held turn → exactly one row
+- [ ] Two people in frame → `MULTIPLE_FACES`
+- [ ] Poor lighting → status may become `FACE_NOT_DETECTED` or stay `ATTENTIVE`. Do not treat either as a score
+- [ ] Deny camera permission → `UNAVAILABLE`, interview questions still run
+- [ ] Unplug or disable the camera mid-interview → `UNAVAILABLE`, and an unavailable period on the report
+- [ ] Uncheck monitoring on the setup screen → camera never turns on, model is not requested
+- [ ] End the interview → camera light goes off

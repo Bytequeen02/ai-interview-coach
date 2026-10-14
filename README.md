@@ -173,7 +173,7 @@ required.
 
 ## Attention monitor
 
-The webcam module lives in [`attention/`](./attention/README.md). It reads a `<video>` the interview page already opened. It does not call the backend, and it does not record video.
+The webcam module lives in [`attention/`](./attention/README.md). It reads a `<video>` the interview page already opened. It does not call the backend, and it does not record video. Open the site through Live Server or localhost. It does not run from `file://`.
 
 The interview screen already shows a live attention badge and adds the summary to the final report. Details and the manual checklist are in [`attention/README.md`](./attention/README.md). Demo: `attention/demo.html`. Automated checks: `node attention/test-status.mjs`.
 
