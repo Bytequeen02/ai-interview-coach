@@ -188,3 +188,10 @@ The interview screen already shows a live attention badge and adds the summary t
 - Voice input and speech-based delivery analysis
 - Deployment (backend on a cloud host, frontend as a static site) with locked-down CORS
 - Behavioral/situational-only interview mode in the frontend UI (backend already supports it)
+
+
+## Video interview interface
+
+The interview screen now includes a video-call layout, a pre-interview lobby, camera/microphone controls, a timer, and an attention-monitoring integration bridge. See [`docs/VIDEO_INTERVIEW.md`](./docs/VIDEO_INTERVIEW.md) and [`docs/ATTENTION_INTEGRATION.md`](./docs/ATTENTION_INTEGRATION.md).
+
+Run the frontend from the project root with `python -m http.server 5500`, then open `http://localhost:5500`. Camera access is requested only after **Start video interview** is clicked. Video is not recorded or uploaded by this UI.

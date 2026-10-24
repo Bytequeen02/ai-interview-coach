@@ -109,9 +109,35 @@
       </div>
     </section>
 
+    <!-- VIDEO INTERVIEW LOBBY -->
+    <section class="view" id="view-video-lobby">
+      <div class="wrap video-lobby-wrap">
+        <div class="eyebrow">VIDEO INTERVIEW</div>
+        <h2 class="title">Ready to meet your interviewer?</h2>
+        <p class="hero-sub">Your camera and microphone will only be requested when you start. Video is not recorded or uploaded.</p>
+        <div class="lobby-checks"><span>✓ Camera preview</span><span>✓ Microphone controls</span><span>✓ AI questions and feedback</span></div>
+        <p id="cameraMessage" class="camera-message" role="status">Camera and microphone are not active yet.</p>
+        <div class="btn-row"><button class="btn btn-ghost" id="backToSetup">Back</button><button class="btn btn-primary" id="startVideoInterview">Start video interview</button></div>
+      </div>
+    </section>
+
     <!-- ============ VIEW: INTERVIEW ============ -->
     <section class="view" id="view-interview">
-      <div class="wrap top">
+      <div class="video-interview-layout">
+        <section class="video-stage panel">
+          <div class="video-stage-top"><span class="live-dot"></span><span>Interview in progress</span><span class="video-clock" id="videoClock">00:00</span></div>
+          <div class="camera-frame"><video id="candidateVideo" autoplay playsinline muted></video><div id="cameraPlaceholder" class="camera-placeholder"><div class="camera-avatar">You</div><p>Your camera is off</p><small>Video stays on this device and is not recorded.</small></div></div>
+          <p id="videoError" class="camera-message" role="status"></p>
+          <div class="video-controls">
+            <button class="btn btn-ghost control-btn" id="cameraToggle" type="button">📷 Camera on</button>
+            <button class="btn btn-ghost control-btn" id="microphoneToggle" type="button">🎙️ Mic on</button>
+            <button class="btn btn-danger control-btn" id="endVideoInterview" type="button">End interview</button>
+          </div>
+          <div class="attention-card"><div><strong>Attention monitoring</strong><p id="attentionStatus">Not connected — awaiting Ankita’s module</p></div><span class="attention-badge">Integration ready</span></div>
+        </section>
+        <section class="video-question-panel">
+          <div class="video-question-heading"><span>YOUR INTERVIEW</span><span class="secure-label">● Private session</span></div>
+          <div class="wrap top">
         <div class="progress-bar"><div class="progress-fill" id="progressFill" style="width:0%"></div></div>
         <div class="q-meta">
           <div class="q-count" id="qCount">Question 1 of 5</div>
@@ -138,6 +164,8 @@
             <button class="btn btn-primary" id="submitAnswer">Submit answer</button>
           </div>
         </div>
+      </div>
+        </section>
       </div>
     </section>
 
@@ -238,6 +266,9 @@
 </div>
 
 <script src="speech.js"></script>
+<script src="camera.js"></script>
+<script src="attention-bridge.js"></script>
+<script src="video-ui.js"></script>
 <script src="app.js"></script>
 </body>
 </html>
