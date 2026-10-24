@@ -99,7 +99,7 @@
             <input id="attentionEnabled" type="checkbox" checked>
             <span>Use camera attention monitoring</span>
           </label>
-          <div class="hint">Optional. When this is on, video is processed on your device and is not uploaded or saved. Uncheck it and the camera stays off.</div>
+          <div class="hint">Optional. When this is on, the camera feed is analysed on your device and is not uploaded or saved. Uncheck it and no attention analysis runs. The interview camera still works.</div>
         </div>
 
         <div class="btn-row" style="margin-top:12px;">
@@ -133,7 +133,14 @@
             <button class="btn btn-ghost control-btn" id="microphoneToggle" type="button">🎙️ Mic on</button>
             <button class="btn btn-danger control-btn" id="endVideoInterview" type="button">End interview</button>
           </div>
-          <div class="attention-card"><div><strong>Attention monitoring</strong><p id="attentionStatus">Not connected — awaiting Ankita’s module</p></div><span class="attention-badge">Integration ready</span></div>
+          <div class="attention-card">
+            <div>
+              <strong>Attention monitoring</strong>
+              <p id="attentionMessage">Attention monitoring is off.</p>
+              <p class="attention-notice" id="attentionNotice" hidden>Camera attention monitoring is on. Video is processed on your device and is not uploaded or saved.</p>
+            </div>
+            <span class="attention-badge" id="attentionStatus" data-status="OFF"><span class="attention-dot"></span><span id="attentionLabel">OFF</span></span>
+          </div>
         </section>
         <section class="video-question-panel">
           <div class="video-question-heading"><span>YOUR INTERVIEW</span><span class="secure-label">● Private session</span></div>
@@ -253,16 +260,6 @@
 
   </main>
 
-  <aside id="attentionDock" class="attention-dock" hidden>
-    <p class="attention-kicker">Attention</p>
-    <video id="interviewVideo" playsinline muted autoplay></video>
-    <div class="attention-badge" id="attentionStatus" data-status="UNAVAILABLE">
-      <span class="attention-dot"></span>
-      <span id="attentionLabel">UNAVAILABLE</span>
-    </div>
-    <p id="attentionMessage">Camera is off.</p>
-    <p class="attention-notice">Camera attention monitoring is on. Video is processed on your device and is not uploaded or saved.</p>
-  </aside>
 </div>
 
 <script src="speech.js"></script>

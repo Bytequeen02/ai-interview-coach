@@ -400,7 +400,7 @@ function showView(id) {
 
 document.getElementById("startBtn").addEventListener("click", () => showView("view-setup"));
 document.getElementById("brandHome").addEventListener("click", () => {
-  finishAttention();
+  if (window.VideoInterviewUI) VideoInterviewUI.endCamera(); // also stops attention monitoring
   showView("view-landing");
 });
 document.getElementById("backToLanding").addEventListener("click", () => showView("view-landing"));
@@ -460,7 +460,10 @@ async function startInterviewFlow() {
     VideoInterviewUI.onInterviewStarted();
     const monitoringOn = document.getElementById("attentionEnabled").checked;
     if (monitoringOn) startAttention();
-    else attentionChoice = "off";
+    else {
+      attentionChoice = "off";
+      showAttention("OFF", "Attention monitoring is off.", "");
+    }
   } catch (err) {
     VideoInterviewUI.endCamera();
     showView("view-video-lobby");
@@ -723,7 +726,7 @@ async function finishSession() {
 
     const attention = await finishAttention();
     renderReport(readiness, summary, attention);
-    if (window.VideoInterviewUI) VideoInterviewUI.endCamera(); main
+    if (window.VideoInterviewUI) VideoInterviewUI.endCamera();
     showView("view-report");
   } catch (err) {
     await finishAttention();
@@ -818,10 +821,10 @@ window.addEventListener("beforeunload", () => {
 });
 
 /* ============================ ATTENTION MONITOR =========================== */
-/* Shared webcam for the whole interview. The module does not open the camera. */
+/* Uses the interview camera stream that VideoInterviewUI / CameraManager already opened.
+   This module never calls getUserMedia and never stops the camera tracks itself. */
 
 let attentionMonitor = null;
-let attentionStream = null;
 let attentionSession = 0;
 let attentionChoice = "off";
 
@@ -833,13 +836,16 @@ function attentionErrorMessage(error) {
 }
 
 function showAttention(status, message, cue) {
-  const dock = document.getElementById("attentionDock");
   const badge = document.getElementById("attentionStatus");
-  dock.hidden = false;
+  const label = document.getElementById("attentionLabel");
+  const text = document.getElementById("attentionMessage");
+  const notice = document.getElementById("attentionNotice");
+  if (!badge || !label || !text) return;
   badge.dataset.status = status;
   badge.dataset.cue = cue || "";
-  document.getElementById("attentionLabel").textContent = status;
-  document.getElementById("attentionMessage").textContent = message;
+  label.textContent = status;
+  text.textContent = message;
+  if (notice) notice.hidden = (status === "OFF");
 }
 
 function renderAttention(snapshot) {
@@ -849,48 +855,22 @@ function renderAttention(snapshot) {
 async function startAttention() {
   const session = ++attentionSession;
   attentionChoice = "on";
-  const video = document.getElementById("interviewVideo");
-  showAttention("UNAVAILABLE", "Opening camera…", "");
+  const video = document.getElementById("candidateVideo"); // shared interview video
+  showAttention("UNAVAILABLE", "Starting attention monitoring…", "");
   try {
-    const modulePromise = import("./attention/attentionMonitor.js").then(async (mod) => {
-      await mod.preloadAttentionEngine();
-      return mod;
-    });
-    const cameraPromise = navigator.mediaDevices.getUserMedia({
-      video: { facingMode: "user", width: { ideal: 640 }, height: { ideal: 480 } },
-      audio: false,
-    });
-    const [mod, stream] = await Promise.all([modulePromise, cameraPromise]);
-    if (session !== attentionSession) {
-      stream.getTracks().forEach((track) => track.stop());
-      return;
-    }
-    const { createAttentionMonitor } = mod;
-    attentionStream = stream;
-    if (session !== attentionSession) {
-      attentionStream.getTracks().forEach((track) => track.stop());
-      attentionStream = null;
-      return;
-    }
-    video.srcObject = attentionStream;
-    await video.play();
-    attentionMonitor = createAttentionMonitor({
+    const mod = await import("./attention/attentionMonitor.js");
+    await mod.preloadAttentionEngine();
+    if (session !== attentionSession) return;
+    attentionMonitor = mod.createAttentionMonitor({
       video,
       onFrame: renderAttention,
       onStatusChange: renderAttention,
     });
     await attentionMonitor.start();
-    if (session !== attentionSession) {
-      await finishAttention();
-    }
+    if (session !== attentionSession) await finishAttention();
   } catch (error) {
     if (session !== attentionSession) return;
     attentionChoice = "failed";
-    if (attentionStream) {
-      attentionStream.getTracks().forEach((track) => track.stop());
-      attentionStream = null;
-    }
-    video.srcObject = null;
     showAttention("UNAVAILABLE", attentionErrorMessage(error), "");
   }
 }
@@ -898,19 +878,14 @@ async function startAttention() {
 async function finishAttention() {
   attentionSession += 1;
   const monitor = attentionMonitor;
-  const stream = attentionStream;
   attentionMonitor = null;
-  attentionStream = null;
   let summary = null;
   try {
     monitor?.stop();
     summary = monitor?.getSummary() ?? null;
   } finally {
     monitor?.destroy();
-    if (stream) stream.getTracks().forEach((track) => track.stop());
-    const video = document.getElementById("interviewVideo");
-    if (video) video.srcObject = null;
-    document.getElementById("attentionDock").hidden = true;
+    showAttention("OFF", "Attention monitoring is off.", "");
   }
   return summary;
 }
@@ -921,7 +896,7 @@ function renderAttentionReport(summary) {
   const tallyEl = document.getElementById("attentionTally");
   const listEl = document.getElementById("attentionReportList");
   if (attentionChoice === "off") {
-    summaryEl.textContent = "Camera attention monitoring was off, so the camera was not opened.";
+    summaryEl.textContent = "Attention monitoring was off, so no attention analysis was run.";
     noteEl.textContent = "No video was uploaded or saved.";
     tallyEl.innerHTML = "";
     listEl.innerHTML = "";
@@ -963,4 +938,3 @@ function renderAttentionReport(summary) {
 function clockTime(ms) {
   return new Date(ms).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" });
 }
-

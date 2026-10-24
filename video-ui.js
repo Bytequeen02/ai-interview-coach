@@ -32,10 +32,6 @@ window.VideoInterviewUI = (() => {
     if (stream) {
       $("candidateVideo").srcObject = stream;
       $("cameraPlaceholder").hidden = CameraManager.cameraEnabled;
-      AttentionBridge.start(stream, event => {
-        const labels = { face_detected: "Face detected", face_not_detected: "Face not detected", looking_away: "Looking away detected", multiple_faces: "Multiple faces detected" };
-        $("attentionStatus").textContent = labels[event.type] || event.message || "Attention event received";
-      }).catch(() => { $("attentionStatus").textContent = "Attention module unavailable"; });
     }
   }
   function renderClock() {
@@ -59,13 +55,12 @@ window.VideoInterviewUI = (() => {
   function endCamera() {
     if (timer) clearInterval(timer);
     timer = null;
-    AttentionBridge.stop();
+    if (typeof finishAttention === "function") finishAttention(); // stop attention monitor before the camera is released
     CameraManager.stop();
     $("candidateVideo").srcObject = null;
     $("cameraPlaceholder").hidden = false;
     $("cameraToggle").textContent = "📷 Camera on";
     $("microphoneToggle").textContent = "🎙️ Mic on";
-    $("attentionStatus").textContent = "Not connected — awaiting Ankita’s module";
   }
   $("startVideoInterview").addEventListener("click", startInterview);
   $("cameraToggle").addEventListener("click", toggleCamera);
