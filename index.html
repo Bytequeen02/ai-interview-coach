@@ -28,8 +28,15 @@
         <div class="eyebrow">Practice before it counts</div>
         <h1 class="hero">Walk into your next interview already sounding ready.</h1>
         <p class="hero-sub">Pick a role, answer questions the way you would live, and get a straight, specific breakdown of what to fix — relevance, structure, filler words, and clarity.</p>
-        <div class="btn-row">
-          <button class="btn btn-primary" id="startBtn">Start a practice interview</button>
+        <div class="round-choice" role="group" aria-label="Choose a round">
+          <button class="round-card" id="startBtn" type="button">
+            <span class="round-name">Interview round</span>
+            <span class="round-desc">Answer role-based questions by voice or text, with your camera and microphone.</span>
+          </button>
+          <button class="round-card" id="startAptitudeBtn" type="button">
+            <span class="round-name">Aptitude round</span>
+            <span class="round-desc">Timed multiple-choice questions. No camera or microphone needed.</span>
+          </button>
         </div>
         <div class="feature-row">
           <div class="item">
@@ -258,7 +265,159 @@
       </div>
     </section>
 
+    <!-- ============ VIEW: APTITUDE SETUP ============ -->
+    <section class="view" id="view-apt-setup">
+      <div class="wrap top">
+        <div class="step-label">Aptitude round</div>
+        <h2 class="title">Set up your test</h2>
+        <p class="title-sub">Choose what to practise. This round doesn't use your camera or microphone.</p>
+
+        <div class="field">
+          <label id="aptSectionsLabel">Sections</label>
+          <div class="check-group" id="aptSections" role="group" aria-labelledby="aptSectionsLabel">
+            <label class="check-chip"><input type="checkbox" value="quant" checked><span>Quant</span></label>
+            <label class="check-chip"><input type="checkbox" value="logical" checked><span>Logical</span></label>
+            <label class="check-chip"><input type="checkbox" value="verbal" checked><span>Verbal</span></label>
+          </div>
+          <div class="hint apt-hint-error" id="aptSectionsHint" role="status"></div>
+        </div>
+
+        <div class="field">
+          <label id="aptCountLabel">Number of questions</label>
+          <div class="pill-group" id="aptGrpCount" role="group" aria-labelledby="aptCountLabel">
+            <button type="button" class="pill apt-pill" data-value="10" aria-pressed="false">10</button>
+            <button type="button" class="pill apt-pill active" data-value="20" aria-pressed="true">20</button>
+            <button type="button" class="pill apt-pill" data-value="30" aria-pressed="false">30</button>
+          </div>
+          <div class="hint">The time limit is set when the test starts and shown on the timer.</div>
+        </div>
+
+        <div class="field">
+          <label id="aptDifficultyLabel">Difficulty</label>
+          <div class="pill-group" id="aptGrpDifficulty" role="group" aria-labelledby="aptDifficultyLabel">
+            <button type="button" class="pill apt-pill" data-value="easy" aria-pressed="false">Easy</button>
+            <button type="button" class="pill apt-pill" data-value="medium" aria-pressed="false">Medium</button>
+            <button type="button" class="pill apt-pill" data-value="hard" aria-pressed="false">Hard</button>
+            <button type="button" class="pill apt-pill active" data-value="mixed" aria-pressed="true">Mixed</button>
+          </div>
+        </div>
+
+        <p class="camera-message is-error" id="aptSetupError" role="alert"></p>
+
+        <div class="btn-row" style="margin-top:12px;">
+          <button class="btn btn-ghost" id="aptBackToLanding" type="button">Back</button>
+          <button class="btn btn-primary" id="aptStartBtn" type="button">Start test</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ VIEW: APTITUDE TEST ============ -->
+    <section class="view" id="view-apt-test">
+      <div class="apt-shell">
+        <header class="apt-bar">
+          <div class="apt-bar-info">
+            <span class="apt-progress" id="aptProgressText">Question 1 of 1</span>
+            <span class="apt-answered" id="aptAnsweredText">0 answered</span>
+          </div>
+          <div class="apt-timer" id="aptTimer" role="timer" aria-label="Time remaining">00:00</div>
+          <button class="btn btn-primary apt-submit" id="aptSubmitBtn" type="button">Submit test</button>
+        </header>
+
+        <div class="apt-body">
+          <section class="apt-question" aria-labelledby="aptQText">
+            <div class="apt-qmeta">
+              <span class="apt-section-tag" id="aptSectionTag">Quant</span>
+            </div>
+            <h2 class="apt-qtext" id="aptQText">Loading…</h2>
+            <div class="apt-options" id="aptOptions" role="radiogroup" aria-labelledby="aptQText"></div>
+            <div class="apt-nav">
+              <button class="btn btn-ghost" id="aptPrevBtn" type="button">Previous</button>
+              <button class="btn btn-ghost apt-mark" id="aptMarkBtn" type="button" aria-pressed="false">Mark for review</button>
+              <button class="btn btn-ghost" id="aptClearBtn" type="button">Clear answer</button>
+              <button class="btn btn-primary" id="aptNextBtn" type="button">Next</button>
+            </div>
+          </section>
+
+          <aside class="apt-side" aria-label="Question palette">
+            <button class="btn btn-ghost apt-palette-toggle" id="aptPaletteToggle" type="button" aria-expanded="false" aria-controls="aptPalette">Question palette</button>
+            <div class="apt-palette" id="aptPalette">
+              <h3 class="apt-palette-title">Question palette</h3>
+              <div class="apt-palette-grid" id="aptPaletteGrid"></div>
+              <ul class="apt-legend">
+                <li><span class="apt-swatch is-answered"></span>Answered</li>
+                <li><span class="apt-swatch"></span>Not answered</li>
+                <li><span class="apt-swatch is-marked"></span>Marked for review</li>
+                <li><span class="apt-swatch is-current"></span>Current question</li>
+              </ul>
+            </div>
+          </aside>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ VIEW: APTITUDE RESULT ============ -->
+    <section class="view" id="view-apt-result">
+      <div class="wrap wide top">
+        <div class="report-head">
+          <div class="step-label">Aptitude round complete</div>
+          <h2 class="title">Your aptitude result</h2>
+        </div>
+
+        <div class="readiness-ring-row">
+          <div class="ring">
+            <svg width="132" height="132" viewBox="0 0 132 132" aria-hidden="true">
+              <circle cx="66" cy="66" r="58" fill="none" stroke="var(--panel-2)" stroke-width="10"/>
+              <circle id="aptRingProgress" cx="66" cy="66" r="58" fill="none" stroke="var(--accent)" stroke-width="10" stroke-linecap="round" stroke-dasharray="364" stroke-dashoffset="364"/>
+            </svg>
+            <div class="ring-label">
+              <div class="num" id="aptPercentNum">0%</div>
+              <div class="of">score</div>
+            </div>
+          </div>
+          <div class="readiness-text">
+            <h3 id="aptScoreLine">0 of 0 correct</h3>
+            <p id="aptScoreNote"></p>
+          </div>
+        </div>
+
+        <dl class="apt-stats">
+          <div><dt>Correct</dt><dd id="aptStatCorrect">0</dd></div>
+          <div><dt>Wrong</dt><dd id="aptStatWrong">0</dd></div>
+          <div><dt>Skipped</dt><dd id="aptStatSkipped">0</dd></div>
+          <div><dt>Time taken</dt><dd id="aptStatTime">00:00</dd></div>
+        </dl>
+
+        <div class="qbreak" id="aptSectionBlock">
+          <h3>Score by section</h3>
+          <div id="aptSectionBars"></div>
+        </div>
+
+        <div class="qbreak">
+          <h3>Review your answers</h3>
+          <div class="pill-group apt-filters" id="aptReviewFilters" role="group" aria-label="Filter review"></div>
+          <div id="aptReviewList"></div>
+        </div>
+
+        <div class="footer-actions">
+          <button class="btn btn-primary" id="aptAnotherBtn" type="button">Take another test</button>
+          <button class="btn btn-ghost" id="aptHomeBtn" type="button">Back to home</button>
+        </div>
+      </div>
+    </section>
+
   </main>
+
+  <!-- Aptitude: confirm / status dialog and screen-reader announcements -->
+  <div class="apt-modal" id="aptModal" hidden>
+    <div class="apt-modal-card" id="aptModalCard" role="dialog" aria-modal="true" aria-labelledby="aptModalTitle" aria-describedby="aptModalText" tabindex="-1">
+      <div class="spinner apt-modal-spinner" id="aptModalSpinner" hidden></div>
+      <h3 id="aptModalTitle">Submit your test?</h3>
+      <p id="aptModalText"></p>
+      <div class="apt-modal-rows" id="aptModalRows"></div>
+      <div class="btn-row apt-modal-actions" id="aptModalActions"></div>
+    </div>
+  </div>
+  <div class="sr-only" id="aptLive" aria-live="polite"></div>
 
 </div>
 
@@ -267,5 +426,7 @@
 <script src="attention-bridge.js"></script>
 <script src="video-ui.js"></script>
 <script src="app.js"></script>
+<script src="aptitude-mock.js"></script> <!-- temporary: delete with the mock -->
+<script src="aptitude.js"></script>
 </body>
 </html>
