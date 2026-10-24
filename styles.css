@@ -283,6 +283,72 @@
 
   .footer-actions{ display:flex; gap:12px; margin-top: 40px; flex-wrap:wrap; }
 
+  .attention-dock{
+    position: fixed;
+    top: 74px;
+    right: 16px;
+    z-index: 30;
+    width: min(228px, 46vw);
+    padding: 12px;
+    border-radius: 22px;
+    background: color-mix(in srgb, var(--panel) 88%, transparent);
+    border: 1px solid color-mix(in srgb, var(--accent) 35%, var(--border));
+    box-shadow: 0 18px 50px rgba(0, 0, 0, 0.28);
+    backdrop-filter: blur(16px);
+  }
+  .attention-dock[hidden]{ display: none; }
+  .attention-kicker{
+    margin: 0 0 8px;
+    font-size: 11px;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--accent);
+  }
+  .attention-dock video{
+    display: block;
+    width: 100%;
+    aspect-ratio: 4 / 3;
+    object-fit: cover;
+    border-radius: 12px;
+    background: #070d16;
+    transform: scaleX(-1);
+  }
+  .attention-badge{
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: 8px;
+    padding: 4px 8px;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    color: var(--muted);
+    background: rgba(159, 176, 198, 0.12);
+  }
+  .attention-dot{ width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
+  .attention-badge[data-status="ATTENTIVE"]{ color: var(--good); background: var(--good-bg); }
+  .attention-badge[data-status="LOOKING_AWAY"],
+  .attention-badge[data-status="FACE_NOT_DETECTED"],
+  .attention-badge[data-status="MULTIPLE_FACES"],
+  .attention-badge[data-cue="warn"]{ color: var(--mid); background: var(--mid-bg); }
+  .attention-badge[data-status="UNAVAILABLE"]{ color: var(--bad); background: var(--bad-bg); }
+  .attention-dock p{ margin: 6px 0 0; color: var(--muted); font-size: 12px; line-height: 1.4; }
+  .attention-notice{ font-size: 11px; }
+  .check-row{ display: flex; gap: 10px; align-items: flex-start; font-weight: 600; cursor: pointer; }
+  .check-row input{ margin-top: 4px; }
+  #attentionReportNote{ color: var(--muted); font-size: 13.5px; }
+  .attention-report{ margin: 8px 0 28px; }
+  .attention-report h3{ margin: 0 0 8px; font-size: 15px; }
+  .attention-report p{ margin: 0; color: var(--text); line-height: 1.5; }
+  .attention-report ol{ margin: 12px 0 0; padding-left: 18px; color: var(--muted); }
+  .attention-report li{ margin: 4px 0; }
+  .attention-tally{ display: grid; gap: 8px; margin-top: 14px; }
+  .attention-tally div{
+    display: flex; justify-content: space-between; gap: 12px;
+    padding: 10px 12px; border-radius: 12px; background: var(--panel-2);
+  }
+
   @media (max-width: 560px){
     .qrow .qtext{ max-width: 60%; }
     .readiness-ring-row{ gap:20px; }

@@ -94,6 +94,14 @@
           <div class="hint">You can stop early — your report will reflect the questions you completed.</div>
         </div>
 
+        <div class="field">
+          <label class="check-row" for="attentionEnabled">
+            <input id="attentionEnabled" type="checkbox" checked>
+            <span>Use camera attention monitoring</span>
+          </label>
+          <div class="hint">Optional. When this is on, video is processed on your device and is not uploaded or saved. Uncheck it and the camera stays off.</div>
+        </div>
+
         <div class="btn-row" style="margin-top:12px;">
           <button class="btn btn-ghost" id="backToLanding">Back</button>
           <button class="btn btn-primary" id="beginInterview">Begin interview</button>
@@ -223,6 +231,14 @@
 
         <div id="reportMetrics"></div>
 
+        <div class="panel attention-report">
+          <h3>Attention</h3>
+          <p id="attentionReportSummary">Attention monitoring was not used.</p>
+          <p id="attentionReportNote"></p>
+          <div class="attention-tally" id="attentionTally"></div>
+          <ol id="attentionReportList"></ol>
+        </div>
+
         <div class="qbreak">
           <h3>Question-by-question</h3>
           <p style="color:var(--muted); font-size:13.5px; margin:-8px 0 18px;">Answers scored below 60 include a model answer to review below the score.</p>
@@ -236,6 +252,17 @@
     </section>
 
   </main>
+
+  <aside id="attentionDock" class="attention-dock" hidden>
+    <p class="attention-kicker">Attention</p>
+    <video id="interviewVideo" playsinline muted autoplay></video>
+    <div class="attention-badge" id="attentionStatus" data-status="UNAVAILABLE">
+      <span class="attention-dot"></span>
+      <span id="attentionLabel">UNAVAILABLE</span>
+    </div>
+    <p id="attentionMessage">Camera is off.</p>
+    <p class="attention-notice">Camera attention monitoring is on. Video is processed on your device and is not uploaded or saved.</p>
+  </aside>
 </div>
 
 <script src="speech.js"></script>

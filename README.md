@@ -8,6 +8,7 @@ report at the end.
 **Team:**
 - **Kashish** — Backend, AI/LLM integration, API design
 - **Vanshika** — Frontend, UI/UX
+- **Ankita** — Attention monitoring (face and gaze on the shared webcam)
 
 ---
 
@@ -60,6 +61,10 @@ ai-interview-coach/
 ├── index.html                 ← frontend entry point
 ├── app.js                     ← frontend logic + API integration layer
 ├── styles.css                 ← frontend styling
+├── attention/                 ← webcam attention module (see attention/README.md)
+│   ├── attentionMonitor.js
+│   ├── demo.html
+│   └── test-status.mjs
 │
 └── backend/
     ├── main.py                ← FastAPI app + route handlers
@@ -165,6 +170,12 @@ required.
 - Every AI-dependent response includes `is_fallback: true/false`. The frontend doesn't need
   to branch on this, but it's useful for debugging demo runs — if results look unusually
   generic, check this flag (it usually means the AI service hit a rate limit).
+
+## Attention monitor
+
+The webcam module lives in [`attention/`](./attention/README.md). It reads a `<video>` the interview page already opened. It does not call the backend, and it does not record video. Open the site through Live Server or localhost. It does not run from `file://`.
+
+The interview screen already shows a live attention badge and adds the summary to the final report. Details and the manual checklist are in [`attention/README.md`](./attention/README.md). Demo: `attention/demo.html`. Automated checks: `node attention/test-status.mjs`.
 
 ---
 
