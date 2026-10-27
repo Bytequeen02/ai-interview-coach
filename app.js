@@ -47,7 +47,7 @@ function mapExperienceLevel(uiValue) {
 // Expected return: [{ id, text, category, idealAnswer }]
 // (Only returns the FIRST question — see integration note above. Later
 // questions are fetched lazily by the "nextQuestion" click handler.)
-async function apiGenerateQuestions({ role, experience, type, count }) {
+async function apiGenerateQuestions({ role, experience, type, count, mode, companyStyle }) {
   let res;
   try {
     res = await fetch(`${CONFIG.API_BASE_URL}/api/interview/start`, {
@@ -59,6 +59,8 @@ async function apiGenerateQuestions({ role, experience, type, count }) {
         experience_level: mapExperienceLevel(experience),
         interview_type: type,
         num_questions: count,
+        mode: mode || "friendly",                  // friendly | strict | stress
+        company_style: companyStyle || "general",  // general | service | product
       }),
     });
   } catch (err) {
@@ -86,7 +88,7 @@ async function apiGenerateQuestions({ role, experience, type, count }) {
 // Expected return:
 // { relevance, technical_accuracy, clarity, communication, overall, feedback, improved_answer }
 // All scores are 0-100 integers (backend returns 0-10 floats — converted here).
-async function apiEvaluateAnswer({ question, answer }) {
+async function apiEvaluateAnswer({ question, answer, isFollowUp = false }) {
   const q = state.questions[state.currentIndex];
   const safeAnswer = (answer || "").trim().length ? answer : "(No answer was provided for this question.)";
 
@@ -100,6 +102,8 @@ async function apiEvaluateAnswer({ question, answer }) {
         question_id: q.id,
         question: question,
         answer: safeAnswer,
+        // For a follow-up, question_id is the PARENT question's id and `question` is the follow-up text.
+        is_follow_up: isFollowUp,
       }),
     });
   } catch (err) {
@@ -110,7 +114,11 @@ async function apiEvaluateAnswer({ question, answer }) {
     throw new Error(body.detail ? JSON.stringify(body.detail) : "Failed to evaluate answer.");
   }
   const data = await res.json();
-  const e = data.evaluation;
+  let e = data.evaluation;
+  // ?mock=phase2 only: add fake follow_up / star where the backend sent none (see interview-options-mock.js)
+  if (window.Phase2Mock && Phase2Mock.active) {
+    e = Phase2Mock.enrich(e, { isFollowUp, questionIndex: state.currentIndex, category: q.category });
+  }
   return {
     relevance: Math.round(e.relevance * 10),
     technical_accuracy: Math.round(e.technical_accuracy * 10),
@@ -119,6 +127,10 @@ async function apiEvaluateAnswer({ question, answer }) {
     overall: Math.round(e.overall_score * 10),
     feedback: e.feedback,
     improved_answer: e.improved_answer,
+    // Optional. null when the backend sends nothing. At most one follow-up per question, so a
+    // follow-up answer never starts another follow-up.
+    follow_up: isFollowUp ? null : InterviewOptions.normalizeFollowUp(e.follow_up),
+    star: InterviewOptions.normalizeStar(e.star),
   };
 }
 
@@ -378,7 +390,7 @@ function mockFinalizeReport({ evaluations }) {
 /* ============================ APP STATE ================================= */
 
 const state = {
-  candidate: { name: "", role: "", experience: "Fresher", type: "Mixed", count: 5 },
+  candidate: { name: "", role: "", experience: "Fresher", type: "Mixed", count: 5, mode: "friendly", companyStyle: "general" },
   sessionId: null,       // set by apiGenerateQuestions() once the backend session starts
   totalQuestions: 0,     // set by apiGenerateQuestions() — use this instead of questions.length
                          // for progress display, since `questions` fills in one at a time
@@ -387,6 +399,11 @@ const state = {
   evaluations: [], // { question, category, ...scores }
   timerHandle: null,
   timerSeconds: 0,
+  // Smart interview options (Phase 2)
+  followUp: null,        // follow-up question on screen right now: { parentIndex, id, text }
+  pendingFollowUp: null, // follow-up the interviewer asked, waiting to be shown after the feedback screen
+  usedVoice: false,      // true once dictation has filled the answer box for the current question
+  voiceStartedAt: 0,     // when the first dictated words arrived (used for the pace measurement)
 };
 
 /* ============================ VIEW ROUTING =============================== */
@@ -421,6 +438,8 @@ function wirePillGroup(groupId, stateKey) {
 }
 wirePillGroup("grpExperience", "experience");
 wirePillGroup("grpType", "type");
+wirePillGroup("grpMode", "mode");
+wirePillGroup("grpCompany", "companyStyle");
 
 document.getElementById("countMinus").addEventListener("click", () => {
   state.candidate.count = Math.max(3, state.candidate.count - 1);
@@ -451,6 +470,8 @@ async function startInterviewFlow() {
       experience: state.candidate.experience,
       type: state.candidate.type,
       count: state.candidate.count,
+      mode: state.candidate.mode,
+      companyStyle: state.candidate.companyStyle,
     });
     state.currentIndex = 0;
     state.evaluations = [];
@@ -483,12 +504,36 @@ function loadQuestion() {
   document.getElementById("qText").textContent = q.text;
   document.getElementById("answerBox").value = "";
   document.getElementById("wordCount").textContent = "0 words";
+  state.usedVoice = false;
+  state.voiceStartedAt = 0;
+  document.getElementById("skipBtn").textContent = "Skip";
   const pct = (state.currentIndex / state.totalQuestions) * 100;
   document.getElementById("progressFill").style.width = pct + "%";
   startTimer();
   speakCurrentQuestion(q.text);
   VoiceUtils.stopListening();
   resetMicUI();
+}
+
+// Shows the interviewer's follow-up as one extra question. The main question index does not change,
+// and the progress bar stays where it was.
+function showFollowUp() {
+  const fu = state.pendingFollowUp;
+  state.pendingFollowUp = null;
+  state.followUp = fu;
+  state.usedVoice = false;
+  state.voiceStartedAt = 0;
+  document.getElementById("qCount").textContent = `Follow-up to question ${fu.parentIndex + 1} of ${state.totalQuestions}`;
+  document.getElementById("qCategory").textContent = "Interviewer follow-up";
+  document.getElementById("qText").textContent = fu.text;
+  document.getElementById("answerBox").value = "";
+  document.getElementById("wordCount").textContent = "0 words";
+  document.getElementById("skipBtn").textContent = "Skip follow-up";
+  startTimer();
+  speakCurrentQuestion(fu.text);
+  VoiceUtils.stopListening();
+  resetMicUI();
+  showView("view-interview");
 }
 
 // Phase 2: speak the question aloud exactly once when it loads.
@@ -542,6 +587,7 @@ function resetMicUI() {
 // "input" event reuses the existing word-count listener above instead of
 // duplicating that logic.
 function applyTranscriptToAnswerBox(text) {
+  if (text && !state.usedVoice) { state.usedVoice = true; state.voiceStartedAt = Date.now(); }
   const box = document.getElementById("answerBox");
   box.value = text;
   box.dispatchEvent(new Event("input"));
@@ -615,7 +661,17 @@ function updateTimerDisplay() {
   document.getElementById("qTimer").textContent = `${m}:${s}`;
 }
 
-document.getElementById("skipBtn").addEventListener("click", () => submitCurrentAnswer(""));
+document.getElementById("skipBtn").addEventListener("click", () => {
+  if (state.followUp) {
+    // Skipping a follow-up sends nothing to the server and moves on to the next main question.
+    stopTimer();
+    VoiceUtils.stopSpeaking();
+    VoiceUtils.stopListening();
+    goToNextMainQuestion();
+    return;
+  }
+  submitCurrentAnswer("");
+});
 document.getElementById("submitAnswer").addEventListener("click", () => {
   submitCurrentAnswer(document.getElementById("answerBox").value);
 });
@@ -626,7 +682,8 @@ async function submitCurrentAnswer(answerText) {
   VoiceUtils.stopListening();
   showView("view-loading");
 
-  const q = state.questions[state.currentIndex];
+  const q = state.questions[state.currentIndex];   // the main question (the parent, during a follow-up)
+  const fu = state.followUp;                       // set while a follow-up is on screen
   const loadingLines = [
     "Checking relevance and topic coverage",
     "Scanning for filler words and structure",
@@ -636,20 +693,38 @@ async function submitCurrentAnswer(answerText) {
 
   try {
     const evaluation = await apiEvaluateAnswer({
-      question: q.text,
+      question: fu ? fu.text : q.text,
       answer: answerText,
       role: state.candidate.role,
       category: q.category,
+      isFollowUp: !!fu,
     });
 
     // small artificial delay so the loading state feels real, not instant
     await new Promise(r => setTimeout(r, 550));
 
-    state.evaluations.push({ question: q.text, category: q.category, answer: answerText, idealAnswer: evaluation.improved_answer, ...evaluation });
-    renderFeedback(evaluation);
+    // Speech information (pace and filler words). Information only, and it never blocks the feedback.
+    try {
+      const seconds = state.usedVoice ? (Date.now() - state.voiceStartedAt) / 1000 : 0;
+      evaluation.speech = await InterviewOptions.getSpeechMetrics(answerText, seconds, state.usedVoice);
+    } catch (e) {
+      evaluation.speech = null;
+    }
+
+    if (fu) {
+      // A follow-up is kept on its parent answer. It is not counted in the averages or the question numbering.
+      const parent = state.evaluations[fu.parentIndex];
+      if (parent) parent.followUp = { question: fu.text, answer: answerText, overall: evaluation.overall, speech: evaluation.speech };
+      state.pendingFollowUp = null;
+    } else {
+      state.evaluations.push({ question: q.text, category: q.category, answer: answerText, idealAnswer: evaluation.improved_answer, ...evaluation });
+      state.pendingFollowUp = evaluation.follow_up ? { parentIndex: state.currentIndex, ...evaluation.follow_up } : null;
+    }
+    renderFeedback(evaluation, { isFollowUp: !!fu, usedVoice: state.usedVoice });
     showView("view-feedback");
   } catch (err) {
-    alert(err.message || "Something went wrong evaluating your answer.");
+    const intro = fu ? "Couldn't submit your follow-up answer. You can try again, or skip the follow-up.\n\n" : "";
+    alert(intro + (err.message || "Something went wrong evaluating your answer."));
     showView("view-interview");
   }
 }
@@ -662,8 +737,10 @@ function scoreColorVar(score) {
   return "var(--bad)";
 }
 
-function renderFeedback(evalData) {
-  document.getElementById("fbQCount").textContent = `Question ${state.currentIndex + 1} of ${state.totalQuestions} — feedback`;
+function renderFeedback(evalData, opts = {}) {
+  document.getElementById("fbQCount").textContent = opts.isFollowUp
+    ? `Follow-up to question ${state.currentIndex + 1} of ${state.totalQuestions} — feedback`
+    : `Question ${state.currentIndex + 1} of ${state.totalQuestions} — feedback`;
   document.getElementById("fbOverall").textContent = evalData.overall;
   document.getElementById("fbOverall").style.color = scoreColorVar(evalData.overall);
   document.getElementById("fbFeedback").textContent = evalData.feedback;
@@ -682,10 +759,23 @@ function renderFeedback(evalData) {
       <div class="bar-track"><div class="bar-fill" style="width:${val}%; background:${scoreColorVar(val)}"></div></div>
     </div>
   `).join("");
+
+  // Smart interview options (all optional)
+  InterviewOptions.renderStar(evalData.star);
+  InterviewOptions.renderSpeech(evalData.speech, opts.usedVoice);
+  const hasFollowUp = !!state.pendingFollowUp;
+  document.getElementById("fbFollowUpNote").hidden = !hasFollowUp;
+  document.getElementById("nextQuestion").textContent = hasFollowUp ? "Answer follow-up" : "Next question";
 }
 
-document.getElementById("nextQuestion").addEventListener("click", async () => {
+document.getElementById("nextQuestion").addEventListener("click", () => {
   VoiceUtils.stopSpeaking();
+  if (state.pendingFollowUp) { showFollowUp(); return; }
+  goToNextMainQuestion();
+});
+
+async function goToNextMainQuestion() {
+  state.followUp = null;
   state.currentIndex++;
   if (state.currentIndex < state.totalQuestions) {
     showView("view-loading");
@@ -709,7 +799,7 @@ document.getElementById("nextQuestion").addEventListener("click", async () => {
   } else {
     await finishSession();
   }
-});
+}
 
 /* ============================ REPORT SCREEN =============================== */
 
@@ -780,6 +870,15 @@ function renderReport(readiness, summary, attention) {
         </div>
         <div class="score-chip ${e.overall >= 70 ? "good" : e.overall >= 45 ? "mid" : "bad"}">${e.overall}</div>
       </div>
+      ${e.followUp ? `
+        <div class="qrow followup-row">
+          <div>
+            <div class="qtext">${escapeHtml(e.followUp.question)}</div>
+            <div class="qtag">Interviewer follow-up</div>
+          </div>
+          <div class="score-chip ${e.followUp.overall >= 70 ? "good" : e.followUp.overall >= 45 ? "mid" : "bad"}">${e.followUp.overall}</div>
+        </div>
+      ` : ""}
       ${e.overall < WEAK_THRESHOLD && e.idealAnswer ? `
         <div class="correct-answer">
           <div class="ca-label">Correct / model answer</div>
@@ -789,6 +888,7 @@ function renderReport(readiness, summary, attention) {
     </div>
   `).join("");
 
+  InterviewOptions.renderReportSpeech(InterviewOptions.summarizeSpeech(state.evaluations));
   renderAttentionReport(attention);
 }
 
@@ -807,6 +907,10 @@ document.getElementById("restartBtn").addEventListener("click", () => {
   state.evaluations = [];
   state.sessionId = null;
   state.totalQuestions = 0;
+  state.followUp = null;
+  state.pendingFollowUp = null;
+  state.usedVoice = false;
+  state.voiceStartedAt = 0;
   document.getElementById("inpName").value = "";
   document.getElementById("inpRole").value = "";
   document.getElementById("topStatus").textContent = "AI Mock Interview Coach";
