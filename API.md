@@ -118,11 +118,30 @@ Response
 
 | Field | Status | Notes |
 |---|---|---|
-| `is_follow_up` (request) | **new, optional** | `true` when the answer is for a follow-up question. In that case `question_id` is the id of the **parent** question, and `question` is the follow-up text. |
-| `evaluation.follow_up` | **new, optional** | object, or `null` when there is no follow-up. Limit: at most 1 follow-up per question and about 2 per interview. The server enforces this. |
+| `is_follow_up` (request) | **new, optional** | `true` when the answer is for a follow-up question. In that case `question_id` is the id of the **parent** question. |
+| `evaluation.follow_up` | **new, optional** | object, or `null` when there is no follow-up. See "Follow-up questions" below for the rules. |
 | `evaluation.star` | **new, optional** | only for questions whose `category` is `Behavioral`, otherwise `null`. Each of `situation`, `task`, `action`, `result` is true/false, and `tip` is one short sentence (max 300 characters). If the model output is missing or malformed, the server returns `null`, never an error. The STAR check does not change the numeric scores. |
 
-> Kashish (implementation note): a follow-up answer must be handled **before** the "already finished" check and the "expected question_id" check in `submit_answer`, and it must **not** call `session_store.advance`. Otherwise a follow-up for question 1 (sent after the session already moved on) is rejected. A follow-up answer is scored and stored, but does not change which question is pending.
+#### Follow-up questions
+
+After a **main** answer, the response may contain `evaluation.follow_up` (`{ "follow_up_id": "1f1", "question": "..." }`). To answer it, send the normal answer request with:
+
+```json
+{ "session_id": "a1b2c3", "question_id": 1, "question": "(ignored)", "answer": "...", "is_follow_up": true }
+```
+
+- `question_id` is the id of the **main** question the follow-up belongs to. The server uses the follow-up text it stored, not the `question` sent by the client.
+- A follow-up answer is evaluated and returned in the same shape. Its `follow_up` and `star` are always `null`.
+- It does **not** move the interview forward, does not replace the main answer or its scores, and is **not** counted in the report scores.
+- It is accepted even after the last main question (when `is_last_question` was `true`), as long as the report has not been requested yet.
+
+Server rules (enforced in code, not left to the AI):
+- at most 1 follow-up per main question and 2 in the whole interview;
+- none for a skipped answer (`(No answer was provided...`) or an answer shorter than 5 words;
+- none when the AI evaluation failed (`is_fallback: true`);
+- the AI only suggests a follow-up. The server cleans it to one question of 10 to 300 characters.
+
+Errors: `400` when no follow-up was offered for that `question_id` or it was already answered, `404` for an unknown `session_id`.
 
 ### 1.4 Final report (`GET /api/interview/{session_id}/report`)
 
