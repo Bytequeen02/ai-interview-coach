@@ -92,6 +92,26 @@
         </div>
 
         <div class="field">
+          <label id="modeLabel">Interviewer mode</label>
+          <div class="pill-group" id="grpMode" role="group" aria-labelledby="modeLabel">
+            <button type="button" class="pill apt-pill" data-value="friendly">Friendly</button>
+            <button type="button" class="pill apt-pill" data-value="strict">Strict</button>
+            <button type="button" class="pill apt-pill" data-value="stress">Stress</button>
+          </div>
+          <div class="hint">Changes how the interviewer asks questions.</div>
+        </div>
+
+        <div class="field">
+          <label id="companyLabel">Company style</label>
+          <div class="pill-group" id="grpCompany" role="group" aria-labelledby="companyLabel">
+            <button type="button" class="pill apt-pill" data-value="general">General</button>
+            <button type="button" class="pill apt-pill" data-value="service">Service-based</button>
+            <button type="button" class="pill apt-pill" data-value="product">Product-based</button>
+          </div>
+          <div class="hint">Shapes the questions towards the kind of company you are preparing for.</div>
+        </div>
+
+        <div class="field">
           <label>Number of questions</label>
           <div class="count-row">
             <button class="count-btn" id="countMinus">−</button>
@@ -212,6 +232,24 @@
           <p id="fbImproved">—</p>
         </div>
 
+        <div class="panel star-panel" id="fbStar" hidden>
+          <h3>STAR check</h3>
+          <p class="panel-intro">STAR stands for Situation, Task, Action and Result. Behavioural answers usually cover all four.</p>
+          <ul class="star-list" id="fbStarList"></ul>
+          <p class="star-overall-tip" id="fbStarTip" hidden></p>
+        </div>
+
+        <div class="panel speech-panel" id="fbSpeech" hidden>
+          <h3>Speech information</h3>
+          <dl class="speech-grid" id="fbSpeechGrid"></dl>
+          <p class="speech-note" id="fbSpeechNote"></p>
+        </div>
+
+        <div class="panel followup-note" id="fbFollowUpNote" hidden>
+          <h3>Interviewer follow-up</h3>
+          <p>Your interviewer has one more question about this answer. It comes next.</p>
+        </div>
+
         <div class="btn-row" style="margin-top:30px;">
           <button class="btn btn-primary" id="nextQuestion">Next question</button>
         </div>
@@ -244,6 +282,12 @@
         </div>
 
         <div id="reportMetrics"></div>
+
+        <div class="panel speech-panel" id="reportSpeech" hidden>
+          <h3>Speech information</h3>
+          <dl class="speech-grid" id="reportSpeechGrid"></dl>
+          <p class="speech-note">Measurements only, not a score. They are based on the answers where speech could be analysed.</p>
+        </div>
 
         <div class="panel attention-report">
           <h3>Attention</h3>
@@ -421,6 +465,8 @@
 
 </div>
 
+<script src="interview-options.js"></script>
+<script src="interview-options-mock.js"></script> <!-- temporary: delete with the mock -->
 <script src="speech.js"></script>
 <script src="camera.js"></script>
 <script src="attention-bridge.js"></script>
