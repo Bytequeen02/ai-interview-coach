@@ -449,6 +449,8 @@
       closeModal();
       renderResult(result, timeTaken, sectionOf);
       showView("view-apt-result");
+      // Save the score to the history. While the round still uses mock questions it is kept out of the real history.
+      if (window.HistoryUI) HistoryUI.recordAptitude(result, USE_MOCK);
       window.scrollTo(0, 0);
     } catch (err) {
       submitting = false;

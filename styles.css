@@ -268,6 +268,56 @@
   .panel.followup-note{ border-color: var(--accent); background: var(--mid-bg); }
   .followup-row{ margin-top:10px; padding-top:10px; border-top:1px dashed var(--border); }
 
+  /* ---- Phase 3: history + resume ---- */
+  .history-link-row{ margin:14px 0 4px; }
+  .optional-tag{ font-weight:400; color: var(--muted-2); font-size:13px; }
+
+  .resume-row{ display:flex; }
+  .field .resume-pick{ display:inline-flex; margin:0; padding:10px 18px; font-size:14px; cursor:pointer; }
+  .resume-row input:focus-visible + .resume-pick{ outline:2px solid var(--accent); outline-offset:3px; }
+  .resume-status{ font-size:14px; color: var(--muted); padding:10px 0; }
+  .resume-added{
+    display:flex; align-items:center; gap:12px; padding:12px 14px;
+    border:1px solid var(--good); background: var(--good-bg); border-radius: var(--radius-md);
+  }
+  .resume-tick{
+    flex-shrink:0; width:26px; height:26px; border-radius:50%; background: var(--good); color:#fff;
+    display:inline-flex; align-items:center; justify-content:center; font-size:14px; font-weight:700;
+  }
+  .resume-info{ flex:1; min-width:0; }
+  .resume-title{ font-weight:600; font-size:14.5px; }
+  .resume-file{ font-size:13px; color: var(--muted); overflow-wrap:anywhere; }
+  .resume-added .hint{ margin-top:4px; }
+  .resume-remove{ flex-shrink:0; padding:8px 14px; font-size:13.5px; }
+  #resumeError{ margin:8px 0 0; }
+  #resumeError[hidden], .resume-added[hidden], .resume-status[hidden], .resume-row[hidden]{ display:none; }
+
+  .history-state{ color: var(--muted); font-size:15px; margin:18px 0; }
+  .history-state[hidden], #historyContent[hidden], #historyWeakBlock[hidden]{ display:none; }
+  .history-state p{ margin:0 0 12px; }
+  .history-chart{ background: var(--panel); border:1px solid var(--border); border-radius: var(--radius-md); padding:14px 10px 8px; }
+  .history-svg{ display:block; width:100%; height:auto; }
+  .hc-grid{ stroke: var(--border); stroke-width:1; }
+  .hc-tick{ fill: var(--muted-2); font-size:11px; font-family: var(--font-body); }
+  .hc-line{ fill:none; stroke: var(--accent); stroke-width:2.5; stroke-linejoin:round; stroke-linecap:round; }
+  .hc-dot{ stroke: var(--panel); stroke-width:2; }
+  .hc-circle{ fill: var(--accent); }
+  .hc-square{ fill: var(--good); }
+  .history-legend{ list-style:none; display:flex; gap:18px; margin:10px 0 0; padding:0; font-size:13px; color: var(--muted); }
+  .history-legend li{ display:flex; align-items:center; gap:8px; }
+  .hl-dot{ display:inline-block; width:11px; height:11px; }
+  .hl-circle{ border-radius:50%; background: var(--accent); }
+  .hl-square{ background: var(--good); }
+  .history-note{ font-size:13.5px; color: var(--muted); margin:8px 0 12px; }
+  .history-note:empty{ display:none; }
+  .history-table-wrap{ overflow-x:auto; background: var(--panel); border:1px solid var(--border); border-radius: var(--radius-md); }
+  .history-table{ width:100%; border-collapse:collapse; font-size:14.5px; }
+  .history-table th, .history-table td{ text-align:left; padding:12px 16px; border-bottom:1px solid var(--border); white-space:nowrap; }
+  .history-table th{ font-size:12.5px; color: var(--muted-2); font-weight:600; }
+  .history-table tbody tr:last-child td{ border-bottom:0; }
+  .history-table .history-score{ text-align:right; }
+  .history-delete:hover{ border-color: var(--bad); color: var(--bad); }
+
   .mock-badge{
     position:fixed; left:12px; bottom:12px; z-index:90; padding:6px 12px; border-radius:999px;
     background: var(--accent); color: var(--accent-ink); font-size:12px; font-weight:600;
