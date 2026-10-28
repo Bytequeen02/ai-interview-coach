@@ -1,3 +1,4 @@
+
 """
 Prompt templates for the AI Interview Coach.
  
@@ -169,6 +170,32 @@ _STAR_JSON_FIELD = ''',
   "star": {"situation": true, "task": true, "action": true, "result": false, "tip": "..."}'''
  
  
+# ---------------------------------------------------------------------------
+# Phase 4: follow-up questions
+# ---------------------------------------------------------------------------
+ 
+MODE_FOLLOW_UP_STYLE: Dict[str, str] = {
+    "friendly": "Keep the follow-up gentle and curious.",
+    "strict": "Keep the follow-up direct and precise.",
+    "stress": "Make the follow-up challenging: probe evidence, trade-offs or edge cases. Stay respectful.",
+}
+ 
+_FOLLOW_UP_JSON_FIELD = ''',
+  "follow_up": "one short follow-up question, or null"'''
+ 
+ 
+def _follow_up_section(candidate_info: Dict[str, Any]) -> str:
+    style = MODE_FOLLOW_UP_STYLE[_mode(candidate_info)]
+    return f"""
+Also decide whether a real interviewer would ask ONE short follow-up question about this answer.
+- Ask one only if the answer is incomplete in a way worth probing, or makes a specific claim that
+  deserves a deeper question. Otherwise set follow_up to null.
+- It must be about what the candidate actually said, be a single question of at most 25 words,
+  not repeat the original question, and not praise or comment on the answer.
+- {style}
+"""
+ 
+ 
 def question_generation_prompt(
     candidate_info: Dict[str, Any],
     previous_questions: List[str],
@@ -236,11 +263,14 @@ def answer_evaluation_prompt(
     question: str,
     answer: str,
     category: Any = None,
+    allow_follow_up: bool = False,
 ) -> str:
     tone_section = _tone_section(candidate_info)
     use_star = is_star_category(category)
     star_section = _STAR_INSTRUCTIONS if use_star else ""
     star_field = _STAR_JSON_FIELD if use_star else ""
+    follow_up_section = _follow_up_section(candidate_info) if allow_follow_up else ""
+    follow_up_field = _FOLLOW_UP_JSON_FIELD if allow_follow_up else ""
  
     return f"""You are an experienced, fair, and detail-oriented interviewer evaluating a candidate's
 answer during a {candidate_info['interview_type']} interview for the role of
@@ -272,7 +302,7 @@ Also provide:
  
 Tone and scoring rules:
 {tone_section}
-{star_section}
+{star_section}{follow_up_section}
 Respond with ONLY a single JSON object in exactly this shape, and nothing else
 (no markdown fences, no explanation before or after):
  
@@ -286,7 +316,7 @@ Respond with ONLY a single JSON object in exactly this shape, and nothing else
   "strengths": ["...", "..."],
   "improvements": ["...", "..."],
   "feedback": "...",
-  "improved_answer": "..."{star_field}
+  "improved_answer": "..."{star_field}{follow_up_field}
 }}
 """
  

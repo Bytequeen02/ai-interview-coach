@@ -22,7 +22,7 @@ from models.schemas import (
     NextQuestionResponse,
     QuestionOut,
 )
-from services import answer_evaluator, llm_client, question_generator, report_generator, session_store
+from services import answer_evaluator, followups, llm_client, question_generator, report_generator, session_store
  
 app = FastAPI(
     title="AI Interview Coach API",
@@ -150,6 +150,11 @@ def submit_answer(payload: AnswerSubmitRequest):
  
     session = session_store.get_session(payload.session_id)
  
+    # A follow-up answer is handled first: it must still work after the last main question
+    # (when the session is already "finished"), and it must never move the interview forward.
+    if payload.is_follow_up:
+        return _submit_follow_up_answer(payload, session)
+ 
     if session["finished"]:
         raise HTTPException(status_code=400, detail="This interview session has already finished.")
  
@@ -171,16 +176,24 @@ def submit_answer(payload: AnswerSubmitRequest):
             detail="Question not found for this session. Call next-question first.",
         )
  
+    allow_follow_up = followups.can_offer(session, payload.question_id, payload.answer)
     evaluation_dict = answer_evaluator.evaluate_answer(
         candidate_info=session["candidate_info"],
         question=stored_questions[payload.question_id]["question"],
         answer=payload.answer,
         category=stored_questions[payload.question_id].get("category"),
+        allow_follow_up=allow_follow_up,
     )
+    follow_up_text = evaluation_dict.pop("follow_up_text", None)
  
     session_store.record_answer(payload.session_id, payload.question_id, payload.answer)
     session_store.record_evaluation(payload.session_id, payload.question_id, evaluation_dict)
     session_store.advance(payload.session_id)
+ 
+    # Offer the follow-up only if the AI really evaluated the answer (not a placeholder).
+    if allow_follow_up and follow_up_text and not evaluation_dict.get("is_fallback"):
+        follow_up_id = session_store.add_follow_up(payload.session_id, payload.question_id, follow_up_text)
+        evaluation_dict["follow_up"] = {"follow_up_id": follow_up_id, "question": follow_up_text}
  
     updated_session = session_store.get_session(payload.session_id)
  
@@ -189,6 +202,35 @@ def submit_answer(payload: AnswerSubmitRequest):
         question_id=payload.question_id,
         evaluation=Evaluation(**evaluation_dict),
         is_last_question=updated_session["finished"],
+    )
+ 
+ 
+def _submit_follow_up_answer(payload: AnswerSubmitRequest, session: dict) -> AnswerSubmitResponse:
+    """Evaluate the answer to a follow-up question that was offered earlier.
+    Follow-ups are stored separately and do not count towards the report scores."""
+    follow_up = session_store.get_follow_up(payload.session_id, payload.question_id)
+    if follow_up is None:
+        raise HTTPException(status_code=400, detail="No follow-up question was asked for this question.")
+    if follow_up["answered"]:
+        raise HTTPException(status_code=400, detail="This follow-up question has already been answered.")
+ 
+    # Use the follow-up text we stored, not the text sent by the client.
+    evaluation_dict = answer_evaluator.evaluate_answer(
+        candidate_info=session["candidate_info"],
+        question=follow_up["question"],
+        answer=payload.answer,
+        category=None,           # a follow-up is a short probe, so no STAR check
+        allow_follow_up=False,   # and no follow-up to a follow-up
+    )
+    evaluation_dict.pop("follow_up_text", None)
+ 
+    session_store.record_follow_up_answer(payload.session_id, payload.question_id, payload.answer, evaluation_dict)
+ 
+    return AnswerSubmitResponse(
+        session_id=payload.session_id,
+        question_id=payload.question_id,
+        evaluation=Evaluation(**evaluation_dict),
+        is_last_question=session["finished"],
     )
  
  
@@ -224,3 +266,4 @@ def get_report(session_id: str):
         target_role=session["candidate_info"]["target_role"],
         **report_data,
     )
+ 

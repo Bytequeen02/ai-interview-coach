@@ -10,6 +10,7 @@ from typing import Any, Dict, Optional
  
 from prompts.prompts import answer_evaluation_prompt, is_star_category
 from services import llm_client
+from services.followups import clean_follow_up
 from services.json_utils import extract_json
  
 REQUIRED_NUMERIC_FIELDS = [
@@ -78,6 +79,7 @@ def _validate_and_normalize(parsed: Dict[str, Any]) -> Dict[str, Any]:
     )
     normalized["is_fallback"] = False
     normalized["star"] = None  # filled in by evaluate_answer for behavioural questions
+    normalized["follow_up_text"] = None  # filled in by evaluate_answer when a follow-up is allowed
     return normalized
  
  
@@ -102,6 +104,7 @@ def _fallback_evaluation() -> Dict[str, Any]:
         "improved_answer": "Not available — AI evaluation service was unavailable for this answer.",
         "is_fallback": True,
         "star": None,
+        "follow_up_text": None,
     }
  
  
@@ -110,20 +113,25 @@ def evaluate_answer(
     question: str,
     answer: str,
     category: Any = None,
+    allow_follow_up: bool = False,
 ) -> Dict[str, Any]:
     """
-    Returns a dict shaped like schemas.Evaluation (including is_fallback).
+    Returns a dict shaped like schemas.Evaluation (including is_fallback), plus
+    `follow_up_text`: a cleaned follow-up question suggested by the AI, or None.
+    The caller decides whether to actually offer it (see services/followups.py).
     `category` is the question's category. Behavioural questions also get a STAR check.
     """
     if llm_client.is_configured():
         try:
-            prompt = answer_evaluation_prompt(candidate_info, question, answer, category)
+            prompt = answer_evaluation_prompt(candidate_info, question, answer, category, allow_follow_up)
             raw = llm_client.generate(prompt)
             parsed = extract_json(raw)
             if parsed and any(f in parsed for f in REQUIRED_NUMERIC_FIELDS):
                 result = _validate_and_normalize(parsed)
                 if is_star_category(category):
                     result["star"] = _normalize_star(parsed.get("star"))
+                if allow_follow_up:
+                    result["follow_up_text"] = clean_follow_up(parsed.get("follow_up"), question)
                 return result
             print(f"[LLM WARNING - could not parse the evaluation, using placeholder] first 200 chars: {str(raw)[:200]!r}")
         except llm_client.LLMError as exc:
