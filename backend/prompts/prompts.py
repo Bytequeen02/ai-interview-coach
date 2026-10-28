@@ -139,6 +139,36 @@ def _tone_section(candidate_info: Dict[str, Any], for_report: bool = False) -> s
     return "\n".join(f"- {line}" for line in lines)
  
  
+# ---------------------------------------------------------------------------
+# Phase 3: STAR checklist for behavioural questions
+# ---------------------------------------------------------------------------
+ 
+# Only "Behavioral" questions ask for a real past experience, so only those get a
+# STAR check. Technical, HR (e.g. "why this company") and Situational (hypothetical)
+# questions do not.
+STAR_CATEGORIES = {"behavioral"}
+ 
+ 
+def is_star_category(category: Any) -> bool:
+    return str(category or "").strip().lower() in STAR_CATEGORIES
+ 
+ 
+_STAR_INSTRUCTIONS = """
+This is a behavioural question, so also run a STAR check on the answer. Mark each part true
+only if it is clearly present in the candidate's own words, otherwise false:
+- situation: the answer describes the context of ONE specific real example
+- task: it says what the candidate's own goal or responsibility was
+- action: it describes concrete steps the candidate personally took (not just "we")
+- result: it states the outcome, ideally with a measurable effect or a clear lesson learned
+Add a "tip": one short sentence about the single most useful missing part. If all four are
+present, the tip should suggest making the result more specific or measurable.
+The STAR check is an extra checklist. It does not change the scoring standard above.
+"""
+ 
+_STAR_JSON_FIELD = ''',
+  "star": {"situation": true, "task": true, "action": true, "result": false, "tip": "..."}'''
+ 
+ 
 def question_generation_prompt(
     candidate_info: Dict[str, Any],
     previous_questions: List[str],
@@ -164,6 +194,12 @@ def question_generation_prompt(
         )
  
     style_section = _question_style_section(candidate_info, category)
+    category_rule = ""
+    if is_star_category(category):
+        category_rule = (
+            "- Asks about ONE specific past experience (for example 'Tell me about a time when...') "
+            "so the candidate can answer with a real example\n"
+        )
  
     return f"""You are an experienced, professional interviewer conducting a {candidate_info['interview_type']} interview
 for the role of "{candidate_info['target_role']}". The candidate's experience level is
@@ -183,7 +219,7 @@ Generate exactly ONE interview question that:
 - Asks ONE question about ONE topic: no multi-part questions, at most two sentences
 - Does not praise, thank or comment on earlier answers (you have not seen them) and does not
   include hints or the answer inside the question
- 
+{category_rule}
 Respond with ONLY a single JSON object in exactly this shape, and nothing else
 (no markdown fences, no explanation before or after):
  
@@ -199,8 +235,12 @@ def answer_evaluation_prompt(
     candidate_info: Dict[str, Any],
     question: str,
     answer: str,
+    category: Any = None,
 ) -> str:
     tone_section = _tone_section(candidate_info)
+    use_star = is_star_category(category)
+    star_section = _STAR_INSTRUCTIONS if use_star else ""
+    star_field = _STAR_JSON_FIELD if use_star else ""
  
     return f"""You are an experienced, fair, and detail-oriented interviewer evaluating a candidate's
 answer during a {candidate_info['interview_type']} interview for the role of
@@ -232,7 +272,7 @@ Also provide:
  
 Tone and scoring rules:
 {tone_section}
- 
+{star_section}
 Respond with ONLY a single JSON object in exactly this shape, and nothing else
 (no markdown fences, no explanation before or after):
  
@@ -246,7 +286,7 @@ Respond with ONLY a single JSON object in exactly this shape, and nothing else
   "strengths": ["...", "..."],
   "improvements": ["...", "..."],
   "feedback": "...",
-  "improved_answer": "..."
+  "improved_answer": "..."{star_field}
 }}
 """
  
