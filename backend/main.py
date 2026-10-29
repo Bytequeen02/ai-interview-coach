@@ -13,6 +13,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
  
 from aptitude import router as aptitude_router
+from history import router as history_router
  
 from models.schemas import (
     AnswerSubmitRequest,
@@ -52,6 +53,17 @@ app.add_middleware(
  
 # Aptitude round (quant / logical / verbal). Scored in code, no AI.
 app.include_router(aptitude_router)
+ 
+# Session history (scores and counts only, saved in a small SQLite file).
+app.include_router(history_router)
+ 
+# Resume upload needs two extra packages (pypdf and python-multipart). If they are missing,
+# the rest of the app still starts and only resume upload is switched off.
+try:
+    from resume import router as resume_router
+    app.include_router(resume_router)
+except Exception as exc:  # noqa: BLE001
+    print(f"[Resume upload is OFF] {exc}. Fix: pip install pypdf python-multipart")
  
  
 # ---------------------------------------------------------------------------
@@ -272,4 +284,3 @@ def get_report(session_id: str):
         target_role=session["candidate_info"]["target_role"],
         **report_data,
     )
- 

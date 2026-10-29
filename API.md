@@ -278,7 +278,9 @@ Response: `{ "sessions": [ ...same shape as save, plus "id"... ] }`, newest firs
 ### 4.3 Delete (`DELETE /api/history?user_id=...`)
 Deletes everything stored for that user. Response: `{ "ok": true }`
 
-Stored: scores and counts only. Never answers, transcripts, video or resume text.
+Stored: scores and counts only. Never answers, transcripts, video or resume text. `sections`, `attention` and `speech` keep **numeric values only**; any text or list inside them is dropped.
+
+`user_id` must be 8 to 64 characters (letters, digits, `-` or `_`), otherwise `422`. A user keeps at most 200 sessions (older ones are removed). `DELETE` also returns `deleted`, the number of sessions removed. The data is in a SQLite file, `backend/data/history.db`, which is not committed to git.
 
 ---
 
@@ -292,7 +294,9 @@ Response
 ```json
 { "text": "first 6000 characters of the resume text", "char_count": 5400, "truncated": false }
 ```
-- The file is read in memory and discarded. Nothing is written to disk.
+- `text` is the first 6000 characters of the extracted text (limited to the first 10 pages). `char_count` is the length of the **whole** extracted text, and `truncated` is `true` when it was longer than 6000.
+- The file is read in memory and discarded. Nothing is written to disk and the text is never logged.
+- Needs the `pypdf` and `python-multipart` packages. If they are missing, the rest of the backend still starts and only this route is switched off (a message is printed in the terminal).
 - `400` with a clear message for: not a PDF, too large, or a scanned PDF with no extractable text.
 - The frontend sends this text as `resume_text` in section 1.1.
 
