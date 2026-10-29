@@ -28,9 +28,26 @@ GEMINI_URL = (
  
 TIMEOUT_SECONDS = 60
  
+# Temporary problems on Gemini's side: too many requests, or the service is busy. Worth retrying.
+RETRY_STATUS_CODES = (429, 500, 502, 503, 504)
+MAX_ATTEMPTS = 4
+MAX_WAIT_SECONDS = 20
+ 
  
 class LLMError(Exception):
     """Raised when the LLM call fails or returns something unusable."""
+ 
+ 
+def _wait_seconds(response, attempt: int) -> float:
+    """How long to wait before the next try. Uses Gemini's Retry-After header when it is there
+    (capped), otherwise 2, 4, 8 ... seconds."""
+    header = response.headers.get("Retry-After") if response is not None else None
+    try:
+        if header is not None:
+            return max(1.0, min(float(header), MAX_WAIT_SECONDS))
+    except (TypeError, ValueError):
+        pass
+    return min(2.0 * (2 ** (attempt - 1)), 10.0)
  
  
 def is_configured() -> bool:
@@ -63,7 +80,7 @@ def generate(prompt: str) -> str:
     # Gemini occasionally returns 503 (overloaded) or 429 (rate limited) under
     # normal load — these are transient, not real failures, so retry briefly
     # before giving up and falling back to demo data.
-    max_attempts = 3
+    max_attempts = MAX_ATTEMPTS
     last_error: str = ""
  
     for attempt in range(1, max_attempts + 1):
@@ -77,14 +94,15 @@ def generate(prompt: str) -> str:
         except httpx.RequestError as exc:
             last_error = f"Network error calling Gemini: {exc}"
             if attempt < max_attempts:
-                time.sleep(2 * attempt)
+                time.sleep(_wait_seconds(None, attempt))
                 continue
             raise LLMError(last_error) from exc
  
-        if response.status_code in (503, 429) and attempt < max_attempts:
+        if response.status_code in RETRY_STATUS_CODES and attempt < max_attempts:
             last_error = f"Gemini API returned status {response.status_code} (transient), retrying..."
-            print(f"[LLM RETRY {attempt}/{max_attempts}] {last_error}")
-            time.sleep(2 * attempt)
+            wait = _wait_seconds(response, attempt)
+            print(f"[LLM RETRY {attempt}/{max_attempts}] {last_error} Waiting {wait:g}s.")
+            time.sleep(wait)
             continue
  
         if response.status_code != 200:
@@ -114,3 +132,4 @@ def generate(prompt: str) -> str:
         return text.strip()
  
     raise LLMError(last_error or "Gemini API failed after retries.")
+ 
