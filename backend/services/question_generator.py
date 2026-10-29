@@ -1,23 +1,24 @@
+
 """
 AI-based interview question generation, with a safe fallback bank.
-
+ 
 Design principle (per project rules): if the LLM is unavailable or
 returns something unusable, the interview must still work. Fallback
 questions are clearly tagged (`is_fallback: True`) so we never present
 canned data as if it were an AI result.
 """
-
+ 
 import itertools
-from typing import Any, Dict, List
-
+from typing import Any, Dict, List, Optional
+ 
 from prompts.prompts import question_generation_prompt
-from services import llm_client
+from services import adaptive, llm_client
 from services.json_utils import extract_json
-
+ 
 # ---------------------------------------------------------------------------
 # Fallback question bank (used only if AI generation is unavailable/fails)
 # ---------------------------------------------------------------------------
-
+ 
 FALLBACK_QUESTIONS: Dict[str, List[str]] = {
     "Introduction": [
         "Tell me about yourself and your journey towards becoming a {target_role}.",
@@ -48,7 +49,7 @@ FALLBACK_QUESTIONS: Dict[str, List[str]] = {
         "How would you handle a situation where you disagreed with your manager's technical decision?",
     ],
 }
-
+ 
 # Category sequences per interview type. "Introduction" always leads.
 _CATEGORY_SEQUENCES: Dict[str, List[str]] = {
     "Technical": ["Technical", "Project-based"],
@@ -56,8 +57,8 @@ _CATEGORY_SEQUENCES: Dict[str, List[str]] = {
     "HR": ["HR", "Behavioral"],
     "Mixed": ["Technical", "Project-based", "Behavioral", "HR", "Situational"],
 }
-
-
+ 
+ 
 def _pick_category(question_number: int, interview_type: str) -> str:
     """1-indexed question_number. Question 1 is always Introduction."""
     if question_number == 1:
@@ -68,8 +69,8 @@ def _pick_category(question_number: int, interview_type: str) -> str:
     for _ in range(question_number - 2):  # advance to the right position
         category = next(cycler)
     return category
-
-
+ 
+ 
 def _pick_difficulty(question_number: int, total_questions: int, experience_level: str) -> str:
     progress = question_number / max(total_questions, 1)
     if experience_level == "Fresher":
@@ -78,8 +79,8 @@ def _pick_difficulty(question_number: int, total_questions: int, experience_leve
         return "Medium" if progress <= 0.7 else "Hard" if progress > 0.85 else "Medium"
     # Mid / Senior
     return "Medium" if progress <= 0.4 else "Hard"
-
-
+ 
+ 
 def _fallback_question(
     category: str, difficulty: str, question_id: int, target_role: str, previous_texts: List[str]
 ) -> Dict[str, Any]:
@@ -102,22 +103,27 @@ def _fallback_question(
         "difficulty": difficulty,
         "is_fallback": True,
     }
-
-
+ 
+ 
 def generate_question(
     candidate_info: Dict[str, Any],
     previous_questions: List[Dict[str, Any]],
     question_number: int,
     total_questions: int,
+    previous_scores: Optional[List[float]] = None,
 ) -> Dict[str, Any]:
     """
     Returns a dict shaped like schemas.QuestionOut (plus is_fallback):
     {question_id, question, category, difficulty, is_fallback}
+ 
+    `previous_scores` are the candidate's recent answer scores (0 to 10). They make the
+    question one step harder or easier than planned (see services/adaptive.py).
     """
     category = _pick_category(question_number, candidate_info["interview_type"])
     difficulty = _pick_difficulty(question_number, total_questions, candidate_info["experience_level"])
+    difficulty = adaptive.adapt(difficulty, previous_scores or [])
     previous_texts = [q["question"] for q in previous_questions]
-
+ 
     if llm_client.is_configured():
         try:
             prompt = question_generation_prompt(
@@ -140,7 +146,8 @@ def generate_question(
                 }
         except llm_client.LLMError as exc:
             print(f"[LLM ERROR - falling back to demo question] {exc}")  # visible in terminal for debugging
-
+ 
     return _fallback_question(
         category, difficulty, question_number, candidate_info["target_role"], previous_texts
     )
+ 

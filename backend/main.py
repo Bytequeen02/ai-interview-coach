@@ -1,5 +1,5 @@
-
 """
+
 AI Interview Coach — Backend
 =============================
 FastAPI application entrypoint.
@@ -25,7 +25,7 @@ from models.schemas import (
     NextQuestionResponse,
     QuestionOut,
 )
-from services import answer_evaluator, followups, llm_client, question_generator, report_generator, session_store
+from services import adaptive, answer_evaluator, followups, llm_client, question_generator, report_generator, session_store
  
 app = FastAPI(
     title="AI Interview Coach API",
@@ -144,6 +144,7 @@ def next_question(session_id: str):
             previous_questions=existing_questions,
             question_number=question_number,
             total_questions=total,
+            previous_scores=adaptive.recent_scores(session),
         )
         session_store.add_question(session_id, question_dict)
     else:
@@ -284,3 +285,4 @@ def get_report(session_id: str):
         target_role=session["candidate_info"]["target_role"],
         **report_data,
     )
+ 
