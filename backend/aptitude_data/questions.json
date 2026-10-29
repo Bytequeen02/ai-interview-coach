@@ -1,0 +1,633 @@
+
+[
+  {
+    "id": "q101",
+    "section": "quant",
+    "difficulty": "easy",
+    "question": "What is 15% of 240?",
+    "options": [
+      "40",
+      "24",
+      "30",
+      "36"
+    ],
+    "answer_index": 3,
+    "explanation": "15% of 240 = 0.15 x 240 = 36."
+  },
+  {
+    "id": "q102",
+    "section": "quant",
+    "difficulty": "easy",
+    "question": "A shirt costs Rs 800. After a 25% discount, what is the selling price?",
+    "options": [
+      "Rs 640",
+      "Rs 200",
+      "Rs 600",
+      "Rs 560"
+    ],
+    "answer_index": 2,
+    "explanation": "Discount = 25% of 800 = 200, so the price is 800 - 200 = Rs 600."
+  },
+  {
+    "id": "q103",
+    "section": "quant",
+    "difficulty": "easy",
+    "question": "What is the average of 12, 18, 24 and 30?",
+    "options": [
+      "24",
+      "21",
+      "20",
+      "22"
+    ],
+    "answer_index": 1,
+    "explanation": "Sum = 84. Average = 84 / 4 = 21."
+  },
+  {
+    "id": "q104",
+    "section": "quant",
+    "difficulty": "easy",
+    "question": "A train covers 180 km in 3 hours. At the same speed, how far will it travel in 5 hours?",
+    "options": [
+      "320 km",
+      "360 km",
+      "300 km",
+      "280 km"
+    ],
+    "answer_index": 2,
+    "explanation": "Speed = 180 / 3 = 60 km/h. Distance in 5 hours = 60 x 5 = 300 km."
+  },
+  {
+    "id": "q105",
+    "section": "quant",
+    "difficulty": "easy",
+    "question": "If 3x + 7 = 28, what is the value of x?",
+    "options": [
+      "6",
+      "8",
+      "7",
+      "5"
+    ],
+    "answer_index": 2,
+    "explanation": "3x = 28 - 7 = 21, so x = 7."
+  },
+  {
+    "id": "q106",
+    "section": "quant",
+    "difficulty": "medium",
+    "question": "The ratio of boys to girls in a class is 3 : 2. If there are 30 students in total, how many girls are there?",
+    "options": [
+      "10",
+      "18",
+      "15",
+      "12"
+    ],
+    "answer_index": 3,
+    "explanation": "Total parts = 5. One part = 30 / 5 = 6. Girls = 2 x 6 = 12."
+  },
+  {
+    "id": "q107",
+    "section": "quant",
+    "difficulty": "medium",
+    "question": "A shopkeeper buys an item for Rs 500 and sells it for Rs 575. What is the profit percentage?",
+    "options": [
+      "18%",
+      "15%",
+      "20%",
+      "12%"
+    ],
+    "answer_index": 1,
+    "explanation": "Profit = 575 - 500 = 75. Profit % = 75 / 500 x 100 = 15%."
+  },
+  {
+    "id": "q108",
+    "section": "quant",
+    "difficulty": "medium",
+    "question": "A can finish a job in 12 days and B can finish it in 6 days. Working together, in how many days will they finish it?",
+    "options": [
+      "3 days",
+      "6 days",
+      "9 days",
+      "4 days"
+    ],
+    "answer_index": 3,
+    "explanation": "Work per day = 1/12 + 1/6 = 3/12 = 1/4. So they need 4 days."
+  },
+  {
+    "id": "q109",
+    "section": "quant",
+    "difficulty": "medium",
+    "question": "What is the simple interest on Rs 5,000 at 8% per annum for 3 years?",
+    "options": [
+      "Rs 1,400",
+      "Rs 1,500",
+      "Rs 1200",
+      "Rs 1,000"
+    ],
+    "answer_index": 2,
+    "explanation": "SI = P x R x T / 100 = 5000 x 8 x 3 / 100 = Rs 1,200."
+  },
+  {
+    "id": "q110",
+    "section": "quant",
+    "difficulty": "medium",
+    "question": "A train 150 m long passes a pole in 10 seconds. What is its speed in km/h?",
+    "options": [
+      "72 km/h",
+      "54 km/h",
+      "60 km/h",
+      "45 km/h"
+    ],
+    "answer_index": 1,
+    "explanation": "Speed = 150 / 10 = 15 m/s. In km/h: 15 x 18/5 = 54 km/h."
+  },
+  {
+    "id": "q111",
+    "section": "quant",
+    "difficulty": "hard",
+    "question": "Pipe A fills a tank in 20 minutes and pipe B fills it in 30 minutes. If both are opened together, how long will the tank take to fill?",
+    "options": [
+      "10 minutes",
+      "12 minutes",
+      "15 minutes",
+      "25 minutes"
+    ],
+    "answer_index": 1,
+    "explanation": "In one minute they fill 1/20 + 1/30 = 5/60 = 1/12 of the tank. So 12 minutes."
+  },
+  {
+    "id": "q112",
+    "section": "quant",
+    "difficulty": "hard",
+    "question": "What is the compound interest on Rs 10,000 at 10% per annum for 2 years, compounded annually?",
+    "options": [
+      "Rs 2,050",
+      "Rs 2100",
+      "Rs 2,000",
+      "Rs 2,200"
+    ],
+    "answer_index": 1,
+    "explanation": "After 1 year: 11,000. After 2 years: 12,100. Compound interest = 12,100 - 10,000 = Rs 2,100."
+  },
+  {
+    "id": "q113",
+    "section": "quant",
+    "difficulty": "hard",
+    "question": "Two numbers are in the ratio 5 : 7 and their LCM is 245. What is the sum of the two numbers?",
+    "options": [
+      "72",
+      "108",
+      "96",
+      "84"
+    ],
+    "answer_index": 3,
+    "explanation": "Let the numbers be 5k and 7k. Their LCM is 35k = 245, so k = 7. The numbers are 35 and 49, and the sum is 84."
+  },
+  {
+    "id": "q114",
+    "section": "quant",
+    "difficulty": "hard",
+    "question": "The average of 5 numbers is 24. When one number is removed, the average of the remaining four becomes 22. Which number was removed?",
+    "options": [
+      "32",
+      "36",
+      "28",
+      "30"
+    ],
+    "answer_index": 0,
+    "explanation": "Total of 5 numbers = 120. Total of 4 numbers = 88. Removed number = 120 - 88 = 32."
+  },
+  {
+    "id": "q115",
+    "section": "quant",
+    "difficulty": "hard",
+    "question": "A boat goes 12 km upstream in 3 hours and the same 12 km downstream in 2 hours. What is the speed of the stream?",
+    "options": [
+      "1.5 km/h",
+      "0.5 km/h",
+      "1 km/h",
+      "2 km/h"
+    ],
+    "answer_index": 2,
+    "explanation": "Upstream speed = 4 km/h, downstream speed = 6 km/h. Stream speed = (6 - 4) / 2 = 1 km/h."
+  },
+  {
+    "id": "q201",
+    "section": "logical",
+    "difficulty": "easy",
+    "question": "Find the next number: 3, 6, 9, 12, ?",
+    "options": [
+      "14",
+      "16",
+      "15",
+      "18"
+    ],
+    "answer_index": 2,
+    "explanation": "Each number is 3 more than the one before, so the next one is 15."
+  },
+  {
+    "id": "q202",
+    "section": "logical",
+    "difficulty": "easy",
+    "question": "Which one is the odd one out: Apple, Banana, Carrot, Mango?",
+    "options": [
+      "Carrot",
+      "Banana",
+      "Apple",
+      "Mango"
+    ],
+    "answer_index": 0,
+    "explanation": "Apple, banana and mango are fruits. Carrot is a vegetable."
+  },
+  {
+    "id": "q203",
+    "section": "logical",
+    "difficulty": "easy",
+    "question": "Pen is to writer as brush is to ?",
+    "options": [
+      "Farmer",
+      "Doctor",
+      "Driver",
+      "Painter"
+    ],
+    "answer_index": 3,
+    "explanation": "A writer uses a pen. A painter uses a brush."
+  },
+  {
+    "id": "q204",
+    "section": "logical",
+    "difficulty": "easy",
+    "question": "If today is Monday, what day will it be after 10 days?",
+    "options": [
+      "Friday",
+      "Wednesday",
+      "Thursday",
+      "Saturday"
+    ],
+    "answer_index": 2,
+    "explanation": "10 days = 1 week + 3 days. Monday + 3 days = Thursday."
+  },
+  {
+    "id": "q205",
+    "section": "logical",
+    "difficulty": "easy",
+    "question": "Statements: All cats are mammals. All mammals are animals. Which conclusion definitely follows?",
+    "options": [
+      "No mammal is a cat",
+      "All cats are animals",
+      "All animals are cats",
+      "Some animals are not mammals"
+    ],
+    "answer_index": 1,
+    "explanation": "Cats are inside mammals, and mammals are inside animals, so all cats are animals."
+  },
+  {
+    "id": "q206",
+    "section": "logical",
+    "difficulty": "medium",
+    "question": "Find the next number: 5, 11, 23, 47, ?",
+    "options": [
+      "93",
+      "95",
+      "91",
+      "99"
+    ],
+    "answer_index": 1,
+    "explanation": "Each number is double the previous one plus 1: 47 x 2 + 1 = 95."
+  },
+  {
+    "id": "q207",
+    "section": "logical",
+    "difficulty": "medium",
+    "question": "If PEN is written as QFO (each letter moved one step forward), how is BAG written?",
+    "options": [
+      "CBH",
+      "CAH",
+      "DBI",
+      "BCH"
+    ],
+    "answer_index": 0,
+    "explanation": "B->C, A->B, G->H, so BAG becomes CBH."
+  },
+  {
+    "id": "q208",
+    "section": "logical",
+    "difficulty": "medium",
+    "question": "Meena walks 4 km north and then 3 km east. How far is she from her starting point?",
+    "options": [
+      "7 km",
+      "1 km",
+      "5 km",
+      "6 km"
+    ],
+    "answer_index": 2,
+    "explanation": "The two legs form a right triangle with sides 3 and 4, so the distance is 5 km."
+  },
+  {
+    "id": "q209",
+    "section": "logical",
+    "difficulty": "medium",
+    "question": "Ravi's father is Sita's brother. How is Sita related to Ravi?",
+    "options": [
+      "Paternal aunt",
+      "Mother",
+      "Grandmother",
+      "Cousin"
+    ],
+    "answer_index": 0,
+    "explanation": "Sita is the sister of Ravi's father, so she is Ravi's paternal aunt."
+  },
+  {
+    "id": "q210",
+    "section": "logical",
+    "difficulty": "medium",
+    "question": "Rohan is taller than Meera. Meera is taller than Kabir. Who is the shortest?",
+    "options": [
+      "Rohan",
+      "Cannot be determined",
+      "Kabir",
+      "Meera"
+    ],
+    "answer_index": 2,
+    "explanation": "Rohan > Meera > Kabir, so Kabir is the shortest."
+  },
+  {
+    "id": "q211",
+    "section": "logical",
+    "difficulty": "hard",
+    "question": "Find the next number: 2, 3, 5, 8, 12, 17, ?",
+    "options": [
+      "23",
+      "22",
+      "25",
+      "24"
+    ],
+    "answer_index": 0,
+    "explanation": "The differences are 1, 2, 3, 4, 5, so the next difference is 6. 17 + 6 = 23."
+  },
+  {
+    "id": "q212",
+    "section": "logical",
+    "difficulty": "hard",
+    "question": "Find the next letter: B, D, G, K, ?",
+    "options": [
+      "O",
+      "Q",
+      "P",
+      "R"
+    ],
+    "answer_index": 2,
+    "explanation": "Positions are 2, 4, 7, 11. The gaps are 2, 3, 4, so the next gap is 5: 11 + 5 = 16, which is P."
+  },
+  {
+    "id": "q213",
+    "section": "logical",
+    "difficulty": "hard",
+    "question": "Statements: Some pens are books. All books are tables. Conclusions: I. Some pens are tables. II. All tables are books. Which conclusion follows?",
+    "options": [
+      "Both I and II follow",
+      "Only II follows",
+      "Only I follows",
+      "Neither follows"
+    ],
+    "answer_index": 2,
+    "explanation": "The pens that are books are also tables, so I follows. Not every table needs to be a book, so II does not follow."
+  },
+  {
+    "id": "q214",
+    "section": "logical",
+    "difficulty": "hard",
+    "question": "What is the angle between the hour hand and the minute hand at 3:30?",
+    "options": [
+      "105 degrees",
+      "90 degrees",
+      "75 degrees",
+      "60 degrees"
+    ],
+    "answer_index": 2,
+    "explanation": "At 3:30 the hour hand is at 3 x 30 + 15 = 105 degrees. The minute hand is at 180 degrees. The difference is 75 degrees."
+  },
+  {
+    "id": "q215",
+    "section": "logical",
+    "difficulty": "hard",
+    "question": "In a code, 'sun moon star' = 'ab cd ef', 'moon sky' = 'cd gh', and 'star sky cloud' = 'ef gh ij'. What is the code for 'sun'?",
+    "options": [
+      "cd",
+      "ab",
+      "ef",
+      "ij"
+    ],
+    "answer_index": 1,
+    "explanation": "'cd' is common to the first two, so moon = cd. 'ef' is common to the first and third, so star = ef. Then sun is the remaining code in the first, which is ab."
+  },
+  {
+    "id": "q301",
+    "section": "verbal",
+    "difficulty": "easy",
+    "question": "Choose the word closest in meaning to 'rapid'.",
+    "options": [
+      "Weak",
+      "Heavy",
+      "Slow",
+      "Quick"
+    ],
+    "answer_index": 3,
+    "explanation": "Rapid means happening at great speed, which is the same as quick."
+  },
+  {
+    "id": "q302",
+    "section": "verbal",
+    "difficulty": "easy",
+    "question": "Choose the word opposite in meaning to 'ancient'.",
+    "options": [
+      "Antique",
+      "Modern",
+      "Historic",
+      "Old"
+    ],
+    "answer_index": 1,
+    "explanation": "Ancient means very old. Its opposite is modern."
+  },
+  {
+    "id": "q303",
+    "section": "verbal",
+    "difficulty": "easy",
+    "question": "Fill in the blank: She ___ to school every day.",
+    "options": [
+      "goes",
+      "gone",
+      "go",
+      "going"
+    ],
+    "answer_index": 0,
+    "explanation": "With the subject 'she' in the simple present, the verb takes -es: goes."
+  },
+  {
+    "id": "q304",
+    "section": "verbal",
+    "difficulty": "easy",
+    "question": "Choose the correctly spelled word.",
+    "options": [
+      "Accommodation",
+      "Acomodation",
+      "Acommodation",
+      "Accomodation"
+    ],
+    "answer_index": 0,
+    "explanation": "The correct spelling has a double c and a double m: accommodation."
+  },
+  {
+    "id": "q305",
+    "section": "verbal",
+    "difficulty": "easy",
+    "question": "What is the plural of 'child'?",
+    "options": [
+      "Childes",
+      "Childs",
+      "Children",
+      "Childrens"
+    ],
+    "answer_index": 2,
+    "explanation": "'Child' has an irregular plural: children."
+  },
+  {
+    "id": "q306",
+    "section": "verbal",
+    "difficulty": "medium",
+    "question": "Fill in the blank: The committee ___ its decision yesterday.",
+    "options": [
+      "announced",
+      "will announced",
+      "announce",
+      "announcing"
+    ],
+    "answer_index": 0,
+    "explanation": "'Yesterday' shows the past, so the past tense 'announced' is needed."
+  },
+  {
+    "id": "q307",
+    "section": "verbal",
+    "difficulty": "medium",
+    "question": "Choose the word closest in meaning to 'meticulous'.",
+    "options": [
+      "Thorough",
+      "Rude",
+      "Hasty",
+      "Careless"
+    ],
+    "answer_index": 0,
+    "explanation": "Meticulous means showing great attention to detail, which is the same as thorough."
+  },
+  {
+    "id": "q308",
+    "section": "verbal",
+    "difficulty": "medium",
+    "question": "What does the idiom 'to break the ice' mean?",
+    "options": [
+      "To feel very cold",
+      "To break something frozen",
+      "To start a friendly conversation",
+      "To end an argument"
+    ],
+    "answer_index": 2,
+    "explanation": "'Break the ice' means to make people feel comfortable at the start of a meeting or conversation."
+  },
+  {
+    "id": "q309",
+    "section": "verbal",
+    "difficulty": "medium",
+    "question": "Choose the grammatically correct sentence.",
+    "options": [
+      "Each of the student has submitted the assignment.",
+      "Each of the students have submitted the assignment.",
+      "Each of the students are submitted the assignment.",
+      "Each of the students has submitted the assignment."
+    ],
+    "answer_index": 3,
+    "explanation": "'Each' is singular, so it takes 'has'. It must also be followed by a plural noun: 'of the students'."
+  },
+  {
+    "id": "q310",
+    "section": "verbal",
+    "difficulty": "medium",
+    "question": "Choose one word for: a person who always expects the best to happen.",
+    "options": [
+      "Optimist",
+      "Pessimist",
+      "Cynic",
+      "Realist"
+    ],
+    "answer_index": 0,
+    "explanation": "An optimist expects good outcomes."
+  },
+  {
+    "id": "q311",
+    "section": "verbal",
+    "difficulty": "hard",
+    "question": "Choose the word closest in meaning to 'ubiquitous'.",
+    "options": [
+      "Rare",
+      "Harmful",
+      "Ancient",
+      "Present everywhere"
+    ],
+    "answer_index": 3,
+    "explanation": "Ubiquitous means found or seen everywhere."
+  },
+  {
+    "id": "q312",
+    "section": "verbal",
+    "difficulty": "hard",
+    "question": "Choose the word opposite in meaning to 'benevolent'.",
+    "options": [
+      "Generous",
+      "Kind",
+      "Charitable",
+      "Malevolent"
+    ],
+    "answer_index": 3,
+    "explanation": "Benevolent means well-meaning and kind. Its opposite is malevolent, meaning wishing harm to others."
+  },
+  {
+    "id": "q313",
+    "section": "verbal",
+    "difficulty": "hard",
+    "question": "Fill in the blank: Although the plan seemed risky, the manager ___ it because the possible rewards were high.",
+    "options": [
+      "ignored",
+      "endorsed",
+      "rejected",
+      "forgot"
+    ],
+    "answer_index": 1,
+    "explanation": "'Although' sets up a contrast with 'risky', and 'because the rewards were high' explains approval, so 'endorsed' fits."
+  },
+  {
+    "id": "q314",
+    "section": "verbal",
+    "difficulty": "hard",
+    "question": "Arrange in logical order. P: As a result, many people now work from home. Q: The pandemic changed how offices operate. R: Companies adopted video meetings and online tools.",
+    "options": [
+      "QRP",
+      "QPR",
+      "RQP",
+      "PQR"
+    ],
+    "answer_index": 0,
+    "explanation": "First the cause (Q), then what companies did (R), and 'as a result' comes last (P)."
+  },
+  {
+    "id": "q315",
+    "section": "verbal",
+    "difficulty": "hard",
+    "question": "Read the passage: 'Plants make food through photosynthesis, using sunlight, water and carbon dioxide. The process releases oxygen as a by-product. Without it, animals would have no oxygen to breathe.' Which statement is best supported by the passage?",
+    "options": [
+      "Animals make their own food using sunlight.",
+      "Carbon dioxide is released as a by-product of photosynthesis.",
+      "Animals rely on photosynthesis for the oxygen they breathe.",
+      "Plants do not need water."
+    ],
+    "answer_index": 2,
+    "explanation": "The passage says photosynthesis releases oxygen and that without it animals would have none to breathe."
+  }
+]

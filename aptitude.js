@@ -15,7 +15,7 @@
   "use strict";
 
   /* ============================ CONFIG ============================ */
-  const USE_MOCK = true;
+  const USE_MOCK = false;
   const STORAGE_KEY = "prepline_aptitude_active"; // in-progress test, so a refresh does not lose it
   const DEFAULT_STATUS = "AI Mock Interview Coach";
   const SECTION_LABELS = { quant: "Quant", logical: "Logical", verbal: "Verbal" };

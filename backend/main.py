@@ -12,6 +12,8 @@ and keeps AI/business logic testable in isolation.
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
  
+from aptitude import router as aptitude_router
+ 
 from models.schemas import (
     AnswerSubmitRequest,
     AnswerSubmitResponse,
@@ -46,6 +48,10 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+ 
+ 
+# Aptitude round (quant / logical / verbal). Scored in code, no AI.
+app.include_router(aptitude_router)
  
  
 # ---------------------------------------------------------------------------

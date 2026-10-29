@@ -216,7 +216,11 @@ Response
 }
 ```
 - Scoring is done in code only. The LLM is not involved.
-- Unknown `round_id` returns `404`.
+- Unknown `round_id` returns `404`. Invalid input (empty `sections`, `count` outside 1 to 60, unknown `difficulty`, `selected_index` outside 0 to 3) returns `422`.
+- Each `review` item also has a `section` field. `review` lists every question in the round, including skipped ones (`selected_index: null`).
+- Questions left out of `answers` count as skipped. Ids that are not in the round are ignored.
+- Submitting the same round again returns the same result (safe to retry).
+- Rounds are kept in memory and are lost when the server restarts.
 
 ---
 
