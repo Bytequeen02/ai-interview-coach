@@ -65,6 +65,8 @@ Response
 
 ### 1.2 Next question (`GET /api/interview/{session_id}/next-question`)
 
+The `difficulty` of a question is **adaptive**: it starts from a plan (for example Easy first, Medium later for a Fresher) and is then moved one step harder when the average of the last two answers is 7.5 or more, or one step easier when it is below 5. The Introduction question, placeholder evaluations and follow-up answers are not counted. Set `ADAPTIVE_DIFFICULTY=off` in `.env` to switch this off.
+
 Response
 ```json
 {
