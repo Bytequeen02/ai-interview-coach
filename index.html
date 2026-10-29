@@ -38,6 +38,9 @@
             <span class="round-desc">Timed multiple-choice questions. No camera or microphone needed.</span>
           </button>
         </div>
+        <div class="history-link-row">
+          <button class="btn btn-ghost" id="openHistoryBtn" type="button">View my history</button>
+        </div>
         <div class="feature-row">
           <div class="item">
             <div class="dot"></div>
@@ -119,6 +122,26 @@
             <button class="count-btn" id="countPlus">+</button>
           </div>
           <div class="hint">You can stop early — your report will reflect the questions you completed.</div>
+        </div>
+
+        <div class="field" id="resumeField" role="group" aria-labelledby="resumeLabel">
+          <label id="resumeLabel">Resume <span class="optional-tag">(optional)</span></label>
+          <div class="resume-row" id="resumeEmpty">
+            <input type="file" id="resumeInput" class="sr-only" accept="application/pdf,.pdf">
+            <label for="resumeInput" class="btn btn-ghost resume-pick">Choose PDF</label>
+          </div>
+          <div class="resume-status" id="resumeLoading" role="status" hidden>Reading your resume…</div>
+          <div class="resume-added" id="resumeAdded" hidden>
+            <span class="resume-tick" aria-hidden="true">✓</span>
+            <div class="resume-info">
+              <div class="resume-title">Resume added</div>
+              <div class="resume-file" id="resumeFileName"></div>
+              <div class="hint" id="resumeNote" hidden></div>
+            </div>
+            <button type="button" class="btn btn-ghost resume-remove" id="resumeRemove">Remove</button>
+          </div>
+          <p class="camera-message is-error" id="resumeError" role="alert" hidden></p>
+          <div class="hint">PDF only, up to 2 MB. Used to tailor your questions. The file is read on the server and is not saved.</div>
         </div>
 
         <div class="field">
@@ -449,6 +472,59 @@
       </div>
     </section>
 
+    <!-- ============ VIEW: HISTORY ============ -->
+    <section class="view" id="view-history">
+      <div class="wrap wide top">
+        <div class="step-label">Your progress</div>
+        <h2 class="title">History</h2>
+        <p class="title-sub">Scores from your past sessions in this browser. Only scores and counts are saved, never your answers, video or resume.</p>
+
+        <p class="history-state" id="historyLoading" role="status">Loading your history…</p>
+
+        <div class="history-state" id="historyError" hidden>
+          <p id="historyErrorText" role="alert"></p>
+          <button class="btn btn-ghost" id="historyRetryBtn" type="button">Try again</button>
+        </div>
+
+        <p class="history-state" id="historyEmpty" hidden>No sessions saved yet. Finish an interview or an aptitude round and it will show up here.</p>
+
+        <div id="historyContent" hidden>
+          <div class="qbreak">
+            <h3>Overall score over time</h3>
+            <div class="history-chart" id="historyChart"></div>
+            <ul class="history-legend">
+              <li><span class="hl-dot hl-circle"></span>Interview</li>
+              <li><span class="hl-dot hl-square"></span>Aptitude</li>
+            </ul>
+            <p class="history-note" id="historyChartNote"></p>
+          </div>
+
+          <div class="qbreak" id="historyWeakBlock">
+            <h3>Weak areas</h3>
+            <p class="history-note">The sections with the lowest average score across your sessions.</p>
+            <div id="historyWeak"></div>
+          </div>
+
+          <div class="qbreak">
+            <h3>Past sessions</h3>
+            <div class="history-table-wrap">
+              <table class="history-table">
+                <thead>
+                  <tr><th scope="col">Date</th><th scope="col">Round</th><th scope="col">Role</th><th scope="col" class="history-score">Score</th></tr>
+                </thead>
+                <tbody id="historyRows"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <div class="footer-actions">
+          <button class="btn btn-ghost" id="historyBackBtn" type="button">Back to home</button>
+          <button class="btn btn-ghost history-delete" id="historyDeleteBtn" type="button">Delete my history</button>
+        </div>
+      </div>
+    </section>
+
   </main>
 
   <!-- Aptitude: confirm / status dialog and screen-reader announcements -->
@@ -467,6 +543,9 @@
 
 <script src="interview-options.js"></script>
 <script src="interview-options-mock.js"></script> <!-- temporary: delete with the mock -->
+<script src="phase3-mock.js"></script> <!-- temporary: delete with the mock -->
+<script src="history.js"></script>
+<script src="resume-upload.js"></script>
 <script src="speech.js"></script>
 <script src="camera.js"></script>
 <script src="attention-bridge.js"></script>

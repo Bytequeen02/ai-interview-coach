@@ -47,7 +47,7 @@ function mapExperienceLevel(uiValue) {
 // Expected return: [{ id, text, category, idealAnswer }]
 // (Only returns the FIRST question — see integration note above. Later
 // questions are fetched lazily by the "nextQuestion" click handler.)
-async function apiGenerateQuestions({ role, experience, type, count, mode, companyStyle }) {
+async function apiGenerateQuestions({ role, experience, type, count, mode, companyStyle, resumeText }) {
   let res;
   try {
     res = await fetch(`${CONFIG.API_BASE_URL}/api/interview/start`, {
@@ -61,6 +61,7 @@ async function apiGenerateQuestions({ role, experience, type, count, mode, compa
         num_questions: count,
         mode: mode || "friendly",                  // friendly | strict | stress
         company_style: companyStyle || "general",  // general | service | product
+        resume_text: resumeText || null,           // plain text from /api/resume/parse, or null
       }),
     });
   } catch (err) {
@@ -390,7 +391,7 @@ function mockFinalizeReport({ evaluations }) {
 /* ============================ APP STATE ================================= */
 
 const state = {
-  candidate: { name: "", role: "", experience: "Fresher", type: "Mixed", count: 5, mode: "friendly", companyStyle: "general" },
+  candidate: { name: "", role: "", experience: "Fresher", type: "Mixed", count: 5, mode: "friendly", companyStyle: "general", resumeText: null },
   sessionId: null,       // set by apiGenerateQuestions() once the backend session starts
   totalQuestions: 0,     // set by apiGenerateQuestions() — use this instead of questions.length
                          // for progress display, since `questions` fills in one at a time
@@ -472,6 +473,7 @@ async function startInterviewFlow() {
       count: state.candidate.count,
       mode: state.candidate.mode,
       companyStyle: state.candidate.companyStyle,
+      resumeText: state.candidate.resumeText,
     });
     state.currentIndex = 0;
     state.evaluations = [];
@@ -818,6 +820,18 @@ async function finishSession() {
     renderReport(readiness, summary, attention);
     if (window.VideoInterviewUI) VideoInterviewUI.endCamera();
     showView("view-report");
+    // Save scores and counts to the history. Never blocks or breaks the report.
+    try {
+      HistoryUI.recordInterview({
+        candidate: state.candidate,
+        evaluations: state.evaluations,
+        readiness,
+        attention,
+        attentionOff: attentionChoice === "off",
+      });
+    } catch (e) {
+      console.warn("History was not saved:", e);
+    }
   } catch (err) {
     await finishAttention();
     alert(err.message || "Something went wrong generating the final report.");
@@ -913,6 +927,7 @@ document.getElementById("restartBtn").addEventListener("click", () => {
   state.voiceStartedAt = 0;
   document.getElementById("inpName").value = "";
   document.getElementById("inpRole").value = "";
+  ResumeUpload.reset();
   document.getElementById("topStatus").textContent = "AI Mock Interview Coach";
   showView("view-landing");
 });
