@@ -65,3 +65,78 @@ def test_missing_key_raises(monkeypatch):
     monkeypatch.setattr(llm_client, "GEMINI_API_KEY", None)
     with pytest.raises(llm_client.LLMError):
         llm_client.generate("p")
+ 
+ 
+# ======================= retries =======================
+ 
+class RetryResponse(FakeResponse):
+    def __init__(self, body, status=200, headers=None):
+        super().__init__(body, status)
+        self.headers = headers or {}
+ 
+ 
+OK_BODY = {"candidates": [{"content": {"parts": [{"text": "fine"}]}}]}
+ 
+ 
+def sequence(monkeypatch, responses):
+    """Each call to httpx.post returns the next response. Sleeping is recorded, not done."""
+    calls = {"n": 0}
+    waits = []
+ 
+    def fake_post(*args, **kwargs):
+        response = responses[min(calls["n"], len(responses) - 1)]
+        calls["n"] += 1
+        return response
+ 
+    monkeypatch.setattr(llm_client.httpx, "post", fake_post)
+    monkeypatch.setattr(llm_client.time, "sleep", lambda seconds: waits.append(seconds))
+    return calls, waits
+ 
+ 
+def test_a_temporary_error_is_retried_and_then_succeeds(monkeypatch):
+    calls, waits = sequence(monkeypatch, [RetryResponse({}, 429), RetryResponse({}, 503), RetryResponse(OK_BODY)])
+    assert llm_client.generate("p") == "fine"
+    assert calls["n"] == 3
+    assert waits == [2.0, 4.0]
+ 
+ 
+def test_retry_after_header_is_used_but_capped(monkeypatch):
+    calls, waits = sequence(monkeypatch, [
+        RetryResponse({}, 429, {"Retry-After": "7"}),
+        RetryResponse({}, 429, {"Retry-After": "500"}),
+        RetryResponse(OK_BODY),
+    ])
+    llm_client.generate("p")
+    assert waits == [7.0, float(llm_client.MAX_WAIT_SECONDS)]
+ 
+ 
+def test_it_gives_up_after_the_last_attempt(monkeypatch):
+    calls, waits = sequence(monkeypatch, [RetryResponse({}, 429)])
+    with pytest.raises(llm_client.LLMError):
+        llm_client.generate("p")
+    assert calls["n"] == llm_client.MAX_ATTEMPTS
+    assert len(waits) == llm_client.MAX_ATTEMPTS - 1
+ 
+ 
+def test_real_errors_are_not_retried(monkeypatch):
+    calls, waits = sequence(monkeypatch, [RetryResponse({"error": "bad key"}, 400)])
+    with pytest.raises(llm_client.LLMError):
+        llm_client.generate("p")
+    assert calls["n"] == 1 and waits == []
+ 
+ 
+def test_a_network_error_is_retried(monkeypatch):
+    waits = []
+    attempts = {"n": 0}
+ 
+    def flaky(*args, **kwargs):
+        attempts["n"] += 1
+        if attempts["n"] < 3:
+            raise llm_client.httpx.ConnectError("no network")
+        return RetryResponse(OK_BODY)
+ 
+    monkeypatch.setattr(llm_client.httpx, "post", flaky)
+    monkeypatch.setattr(llm_client.time, "sleep", lambda seconds: waits.append(seconds))
+    assert llm_client.generate("p") == "fine"
+    assert attempts["n"] == 3
+ 
