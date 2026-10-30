@@ -1,197 +1,132 @@
-# AI Interview Coach
+# Prepline: AI Mock Interview Coach
 
-An AI-powered mock interview platform built as a college project (CSE518-7b). Candidates
-practice interviews with AI-generated questions tailored to their target role, get their
-answers evaluated by an LLM across multiple dimensions, and receive a full performance
-report at the end.
+A practice tool for placement interviews. The candidate picks a role, sits a video interview with an AI interviewer (voice or typed answers), and gets a score and written feedback for every answer, plus a final report. It also has a timed aptitude round and a history of past sessions.
 
-**Team:**
-- **Kashish** — Backend, AI/LLM integration, API design
-- **Vanshika** — Frontend, UI/UX
-- **Ankita** — Attention monitoring (face and gaze on the shared webcam)
+College project (CSE518-7b).
 
----
+## What it does
 
-## Features
+**Interview**
+- AI-generated questions for the chosen role, experience level and interview type (Technical, HR, Mixed).
+- Interviewer mode: friendly, strict or stress (changes the tone of questions and feedback, never the scoring standard).
+- Company style: general, service-based or product-based.
+- Optional resume upload (PDF). The questions can then use the candidate's projects and skills.
+- Voice input and read-aloud questions (Chrome or Edge).
+- Every answer gets scores for relevance, technical accuracy, completeness, clarity and communication, written feedback, and a stronger sample answer.
+- Behavioural answers get a STAR checklist (Situation, Task, Action, Result) with a tip.
+- The interviewer can ask one short follow-up question after an answer (at most 2 per interview).
+- Question difficulty adapts: it goes one step up after strong answers and one step down after weak ones.
+- Final report: overall score, category scores, strengths, areas to improve, recommendations.
 
-- **Interview setup** — candidate name, target role, experience level, interview type, and number of questions
-- **AI-generated questions** — role-aware, category-based (Introduction, Technical, Project-based, Behavioral, HR, Situational), increasing in difficulty as the interview progresses
-- **AI answer evaluation** — scores each answer on relevance, technical accuracy, completeness, clarity, and communication, plus written feedback and a model "improved answer"
-- **Final interview report** — overall score, category breakdown, strengths, areas for improvement, an AI-written summary, and actionable recommendations
-- **Demo-safe by design** — if the AI service is ever unavailable (rate limits, network issues), every AI-dependent feature falls back to safe placeholder data instead of crashing, clearly flagged via `is_fallback: true`
+**Attention monitoring (optional, runs in the browser)**
+- Uses MediaPipe Face Landmarker on the interview video. It reports whether a face is visible, whether more than one face is visible, and whether the head is turned away for a sustained time.
+- It measures **head orientation only**, not eye tracking. Events are called "potential attention changes". Nothing is called cheating, and no attention score is calculated.
+- Video is processed on the device. It is never uploaded or saved.
 
----
+**Speech information**
+- Words per minute and filler words for each answer. These are measurements shown for information, not scores.
 
-## Architecture
+**Aptitude round**
+- 45 original questions (quantitative, logical reasoning, verbal), timed, scored automatically by code (no AI), with a worked explanation for every question.
 
-```
-Candidate (browser)
-        │
-        ▼
- Frontend (HTML/CSS/JS)  ──── fetch() ────▶  FastAPI Backend  ────▶  Gemini API (LLM)
-        │                                          │
-        └──────────── renders results ◀────────────┘
-                                                     │
-                                              In-memory session store
-```
+**History**
+- Scores and counts from past sessions with a simple chart. Stored in a small local SQLite file. Answers, transcripts, video and resume text are never stored.
 
-The frontend and backend are fully decoupled — they only communicate over the REST API
-described in [`backend/API_CONTRACT.md`](./backend/API_CONTRACT.md). Either side can be
-rebuilt independently as long as that contract is honored.
-
----
-
-## Tech Stack
-
-| Layer      | Technology |
-|------------|------------|
-| Frontend   | Plain HTML, CSS, JavaScript (no framework/build step) |
-| Backend    | Python, FastAPI, Pydantic, Uvicorn |
-| AI         | Google Gemini API (`gemini-3.6-flash`) |
-| Testing    | Pytest (backend, with mocked AI calls) |
-| Session storage | In-memory (swappable for a real DB later — see [Future Scope](#future-scope)) |
-
----
-
-## Folder Structure
+## Project layout
 
 ```
-ai-interview-coach/
-├── README.md                  ← you are here
-├── index.html                 ← frontend entry point
-├── app.js                     ← frontend logic + API integration layer
-├── styles.css                 ← frontend styling
-├── attention/                 ← webcam attention module (see attention/README.md)
-│   ├── attentionMonitor.js
-│   ├── demo.html
-│   └── test-status.mjs
-│
-└── backend/
-    ├── main.py                ← FastAPI app + route handlers
-    ├── requirements.txt
-    ├── .env.example           ← copy to .env and add your Gemini key
-    ├── .gitignore
-    ├── API_CONTRACT.md         ← full endpoint-by-endpoint request/response spec
-    ├── models/
-    │   └── schemas.py          ← all Pydantic request/response models
-    ├── prompts/
-    │   └── prompts.py          ← LLM prompt templates
-    ├── services/
-    │   ├── llm_client.py       ← Gemini API wrapper (with retry + timeout handling)
-    │   ├── question_generator.py
-    │   ├── answer_evaluator.py
-    │   ├── report_generator.py
-    │   ├── session_store.py    ← in-memory session state
-    │   └── json_utils.py       ← robust JSON extraction from LLM output
-    └── tests/
-        └── test_api.py         ← pytest suite (23 tests, AI calls mocked)
+index.html, styles.css, app.js      main page and interview flow
+camera.js, video-ui.js              camera and video interview screen
+speech.js                           voice input and read-aloud
+aptitude.js, history.js             aptitude round and history screens
+interview-options.js                follow-up, STAR and speech panels
+resume-upload.js                    resume upload
+attention/                          attention monitoring module (MediaPipe)
+speech-analysis/                    words per minute and filler words
+backend/
+    main.py                         FastAPI app
+    models/schemas.py               request and response shapes
+    prompts/prompts.py              prompts for questions, evaluation and the report
+    services/                       LLM client, question generator, answer evaluator,
+                                    report generator, follow-ups, adaptive difficulty, sessions
+    aptitude.py, aptitude_data/     aptitude round and question bank
+    history.py                      session history
+    resume.py                       resume (PDF) reading
+API.md                              request and response contract between frontend and backend
 ```
 
----
+Files named `*-mock.js` are development helpers. They only switch on when the page is opened with `?mock=phase2` or `?mock=phase3`, and are not used otherwise.
 
-## Setup & Running Locally
+## Setup (Windows)
 
-### 1. Backend
+You need Python 3.10 or newer, a Google Gemini API key, and Google Chrome (voice input needs Chrome or Edge).
 
-```bash
+```powershell
+python -m venv .venv
+.venv\Scripts\activate
+python -m pip install -r backend\requirements.txt
+```
+
+Create `backend\.env` (see `backend\.env.example`):
+
+```
+GEMINI_API_KEY=your_key_here
+# optional
+GEMINI_MODEL=
+ADAPTIVE_DIFFICULTY=on
+```
+
+## Run
+
+Two terminals, both with the virtual environment active.
+
+Backend (in the `backend` folder):
+```powershell
 cd backend
-python -m venv venv
-source venv/bin/activate        # Windows: venv\Scripts\activate
-pip install -r requirements.txt
-cp .env.example .env            # then edit .env and add your real GEMINI_API_KEY
-uvicorn main:app --reload
+python -m uvicorn main:app --reload
 ```
 
-Backend runs at `http://127.0.0.1:8000`.
-- Interactive API docs (Swagger): `http://127.0.0.1:8000/docs`
-- Health check: `http://127.0.0.1:8000/api/health`
+Frontend (in the project root):
+```powershell
+python -m http.server 5500
+```
 
-Get a free Gemini API key at [aistudio.google.com/apikey](https://aistudio.google.com/apikey)
-(no billing setup required, generous free tier).
+Open **http://127.0.0.1:5500** in Chrome. Do not open `index.html` by double-clicking: the attention module needs the page to be served over http.
 
-### Environment Variables
+API documentation (Swagger): http://127.0.0.1:8000/docs
 
-| Variable          | Required | Default              | Notes                                      |
-|--------------------|----------|-----------------------|---------------------------------------------|
-| `GEMINI_API_KEY`   | Yes*     | —                      | *App still runs without it — falls back to demo data everywhere |
-| `GEMINI_MODEL`     | No       | `gemini-3.6-flash`     | Override to use a different Gemini model    |
+## Tests
 
-### 2. Frontend
-
-No build step — plain HTML/CSS/JS.
-
-1. Make sure the backend is running first (frontend calls `http://127.0.0.1:8000`).
-2. Open `index.html` directly in a browser, **or** use the VS Code "Live Server" extension
-   for auto-reload while editing (right-click `index.html` → Open with Live Server).
-
----
-
-## API Endpoints (summary)
-
-| Method | Endpoint                                       | Purpose                          |
-|--------|--------------------------------------------------|-----------------------------------|
-| GET    | `/api/health`                                    | Liveness + AI-configured check    |
-| POST   | `/api/interview/start`                           | Start a session, get question 1   |
-| GET    | `/api/interview/{session_id}/next-question`      | Get the current pending question  |
-| POST   | `/api/interview/answer`                          | Submit an answer, get AI evaluation |
-| GET    | `/api/interview/{session_id}/report`             | Get the final interview report    |
-
-Full request/response schemas, field constraints, and error cases:
-**[`backend/API_CONTRACT.md`](./backend/API_CONTRACT.md)**
-
----
-
-## Testing
-
-```bash
+```powershell
 cd backend
-pytest -v
+python -m pytest -q                          # backend tests (no real AI calls are made)
+cd ..
+node attention/test-status.mjs               # attention logic
+node speech-analysis/test-speech.mjs         # speech analysis
 ```
 
-23 tests covering health check, interview creation (valid/invalid), answer submission,
-empty/invalid inputs, invalid sessions, report generation, and AI-response parsing/fallback
-behavior. All AI calls are mocked, so tests run instantly with no API key or network access
-required.
+Manual check scripts (they need the backend running and a valid API key) are in `backend/`: `check_modes.py`, `check_star.py`, `check_followups.py`, `check_adaptive.py`, `check_aptitude.py`, and `check_consistency.py` (scores the same answers several times to see how stable the scoring is).
 
----
+## Privacy and fairness
 
-## Frontend ↔ Backend Integration Notes
+- Video and webcam frames are processed in the browser and are never uploaded or stored.
+- A resume PDF is read in memory and thrown away.
+- History keeps scores and counts only.
+- Attention events are neutral observations. Looking away does not prove anything, and the report says so.
+- The scoring standard is the same in every interviewer mode and company style.
 
-- The backend generates **one question at a time** — question N+1 is only created after
-  question N has been answered. `app.js` fetches the next question just-in-time via
-  `next-question`, rather than pre-loading the whole interview.
-- Backend evaluation scores are **0–10**; the frontend UI displays **0–100**, so `app.js`
-  multiplies every score by 10 when reading the API response.
-- Backend enums are strict: `experience_level` must be exactly `Fresher` / `Junior` / `Mid` /
-  `Senior`. The UI's friendlier labels (e.g. "0–2 yrs") are mapped to these in `app.js`
-  (`mapExperienceLevel()`).
-- CORS is wide open (`allow_origins=["*"]`) for local development — **tighten this before
-  any production deployment** (see note in `backend/main.py`).
-- Every AI-dependent response includes `is_fallback: true/false`. The frontend doesn't need
-  to branch on this, but it's useful for debugging demo runs — if results look unusually
-  generic, check this flag (it usually means the AI service hit a rate limit).
+## Known limitations
 
-## Attention monitor
+- Answer scores and feedback come from an AI model, so they can vary a little from run to run and can be wrong. They are practice feedback, not a hiring decision.
+- Head-orientation thresholds were tuned by hand on a few people. No accuracy figure is claimed.
+- Filler word matching is approximate.
+- Interview sessions are kept in memory and are lost when the server restarts.
+- There is no login. History belongs to a random id stored in the browser.
+- Voice input needs Chrome or Edge and an internet connection.
+- Scanned (image-only) PDFs cannot be read as resumes.
+- Not deployed: it runs on localhost.
 
-The webcam module lives in [`attention/`](./attention/README.md). It reads a `<video>` the interview page already opened. It does not call the backend, and it does not record video. Open the site through Live Server or localhost. It does not run from `file://`.
+## Team
 
-The interview screen already shows a live attention badge and adds the summary to the final report. Details and the manual checklist are in [`attention/README.md`](./attention/README.md). Demo: `attention/demo.html`. Automated checks: `node attention/test-status.mjs`.
-
----
-
-## Future Scope
-
-- Persistent storage (MongoDB/PostgreSQL) instead of in-memory sessions, so interviews
-  survive a server restart
-- User accounts and interview history across sessions
-- Resume/JD-aware question generation (fields already exist in the API, not yet exposed in the UI)
-- Voice input and speech-based delivery analysis
-- Deployment (backend on a cloud host, frontend as a static site) with locked-down CORS
-- Behavioral/situational-only interview mode in the frontend UI (backend already supports it)
-
-
-## Video interview interface
-
-The interview screen now includes a video-call layout, a pre-interview lobby, camera/microphone controls, a timer, and an attention-monitoring integration bridge. See [`docs/VIDEO_INTERVIEW.md`](./docs/VIDEO_INTERVIEW.md) and [`docs/ATTENTION_INTEGRATION.md`](./docs/ATTENTION_INTEGRATION.md).
-
-Run the frontend from the project root with `python -m http.server 5500`, then open `http://localhost:5500`. Camera access is requested only after **Start video interview** is clicked. Video is not recorded or uploaded by this UI.
+- Kashish: backend, AI integration, scoring and prompts, API design
+- Vanshika: frontend and user interface
