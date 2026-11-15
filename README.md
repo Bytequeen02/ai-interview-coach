@@ -4,6 +4,9 @@ A practice tool for placement interviews. The candidate picks a role, sits a vid
 
 College project (CSE518-7b).
 
+## **Live demo:** https://prepline-ylkp.onrender.com
+> Note: the app runs on a free server, so the first load may take up to a minute.
+
 ## What it does
 
 **Interview**
