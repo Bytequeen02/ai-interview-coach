@@ -13,8 +13,12 @@
    in this file needs to change.
    ========================================================================= */
 
+// Local machine, frontend on its own port (for example 5500): the backend is on port 8000.
+// When the site is served by the backend itself (deployed, or opened on port 8000), use the same address.
+const IS_SEPARATE_DEV_FRONTEND =
+  ["localhost", "127.0.0.1"].includes(location.hostname) && location.port !== "8000";
 const CONFIG = {
-  API_BASE_URL: "http://127.0.0.1:8000", // FastAPI backend (Kashish's part)
+  API_BASE_URL: IS_SEPARATE_DEV_FRONTEND ? "http://127.0.0.1:8000" : "",
 };
 
 /* ============================ API LAYER ================================

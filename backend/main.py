@@ -1,5 +1,5 @@
-"""
 
+"""
 AI Interview Coach — Backend
 =============================
 FastAPI application entrypoint.
@@ -9,8 +9,13 @@ delegate all real work to services/*.py. This keeps main.py readable
 and keeps AI/business logic testable in isolation.
 """
  
+import re
+from pathlib import Path
+ 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
  
 from aptitude import router as aptitude_router
 from history import router as history_router
@@ -78,11 +83,6 @@ def health_check():
         "llm_configured": llm_client.is_configured(),
         "active_sessions": session_store.session_count(),
     }
- 
- 
-@app.get("/", tags=["Health"])
-def root():
-    return {"message": "AI Interview Coach API is running. See /docs for API documentation."}
  
  
 # ---------------------------------------------------------------------------
@@ -285,4 +285,40 @@ def get_report(session_id: str):
         target_role=session["candidate_info"]["target_role"],
         **report_data,
     )
+ 
+ 
+# ---------------------------------------------------------------------------
+# Serve the website from the same server (used when the app is deployed)
+# ---------------------------------------------------------------------------
+# The frontend lives in the project root, next to the backend folder. Serving it from here
+# means the page and the API share one address, so no CORS or URL settings are needed.
+#
+# Only files that belong to the website are served: top-level .html/.js/.css/image files and the
+# attention/ and speech-analysis/ folders. Everything else (.env, .git, backend/, tests, notes)
+# is never reachable from the browser.
+ 
+FRONTEND_DIR = Path(__file__).resolve().parent.parent
+_PUBLIC_ROOT_FILE = re.compile(r"^[A-Za-z0-9_-]+\.(html|js|css|ico|png|jpg|jpeg|svg|webp|woff2?)$")
+ 
+if (FRONTEND_DIR / "index.html").is_file():
+ 
+    @app.get("/", include_in_schema=False)
+    def website_home():
+        return FileResponse(FRONTEND_DIR / "index.html")
+ 
+    @app.get("/{filename}", include_in_schema=False)
+    def website_file(filename: str):
+        path = FRONTEND_DIR / filename
+        if _PUBLIC_ROOT_FILE.match(filename) and path.is_file():
+            return FileResponse(path)
+        raise HTTPException(status_code=404, detail="Not found.")
+ 
+    for _folder in ("attention", "speech-analysis"):
+        if (FRONTEND_DIR / _folder).is_dir():
+            app.mount(f"/{_folder}", StaticFiles(directory=FRONTEND_DIR / _folder), name=_folder)
+else:
+ 
+    @app.get("/", tags=["Health"], include_in_schema=False)
+    def root():
+        return {"message": "AI Interview Coach API is running. See /docs for API documentation."}
  
